@@ -106,8 +106,9 @@
 | API | 用途 | 優先度 | 備考 |
 |:---|:---|:---|:---|
 | **Google Books API** | 書籍検索（国内・洋書） | **主要** | 日本語書籍も収録。表紙画像が豊富 |
+| **楽天ブックス総合検索API** | 国内書籍・コミック・雑誌 | **主要** | 日本の商業出版物に非常に強い。書影充実。ジャンル情報も詳細 |
 | **NDLサーチ OpenSearch API** | 国内書籍の補完検索 | **補完** | 国立国会図書館。ISBN検索に強い。書影APIは2026年3月末終了予定のため書誌情報のみ利用 |
-| **OpenBD 代替API** | 国内書籍の追加補完 | **フォールバック** | 旧OpenBDの代替。書影収録が限定的。将来終了の可能性あり |
+| **OpenBD 代替API** | 国内書籍の追加補完 | **速度** | 爆速だがカバレッジにムラがある。ISBN検索の一次キャッシュ的に利用 |
 
 > **⚠️ 外部API障害時のフォールバック**: いずれのAPIも応答しない場合、ユーザーにエラーを表示しつつ「カスタム書籍として手動登録」を案内するUIを提供する。
 
@@ -217,6 +218,7 @@ book-stack-hub/
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | アクセストークン有効期限（分） | `30` |
 | `REFRESH_TOKEN_EXPIRE_DAYS` | リフレッシュトークン有効期限（日） | `30` |
 | `GOOGLE_BOOKS_API_KEY` | Google Books APIキー | — |
+| `RAKUTEN_APP_ID` | 楽天ウェブサービス アプリID | — |
 | `ALLOWED_ORIGINS` | CORS許可オリジン | `https://bookstackhub.example.com` |
 | `IMAGE_CACHE_DIR` | 画像キャッシュディレクトリ | `/data/images` |
 | `IMAGE_MAX_WIDTH` | 表紙画像の最大幅（px） | `400` |
@@ -290,8 +292,8 @@ book-stack-hub/
   1. ユーザーがキーワードまたはISBNで検索
   2. バックエンドが以下の順序で外部APIに問い合わせ:
      a. 自社DBのマスター書籍を検索（キャッシュヒット）
-     b. Google Books API に問い合わせ
-     c. NDLサーチ OpenSearch API に問い合わせ（ISBN検索時のみ）
+     b. キーワード検索時: Google Books API (洋書・技術書) + 楽天ブックスAPI (国内・コミック) を並行リクエスト
+     c. ISBN検索時: OpenBD -> 楽天ブックス -> Google Books -> NDLサーチ の順でヒットするまで検索
   3. 結果を統合・重複排除してフロントエンドに返却
   4. ユーザーが書籍を選択して本棚に追加した時点で、マスター書籍としてDBに保存
 
@@ -303,7 +305,8 @@ book-stack-hub/
   - per_page: 1ページあたりの件数（デフォルト: 20、最大: 40）
 
 データ統合ロジック:
-  - **優先順位**: Google Books > NDLサーチ > OpenBD
+  - **優先順位（書誌情報）**: 楽天ブックス > Google Books > OpenBD > NDLサーチ
+  - **優先順位（書影）**: 楽天ブックス (高画質) > Google Books > OpenBD
   - **補完**: 上位APIで欠損している項目（出版日、ページ数、あらすじ等）を、下位APIの情報でマージして補完する
   - **同一性判定**: ISBN-13の一致をもって同一書籍とみなす
 ```
@@ -314,6 +317,10 @@ book-stack-hub/
 検索対象: 自社DBに登録済みのマスター書籍 + カスタム書籍（自分が作成したもののみ）
 検索方法: PostgreSQLの全文検索（pg_trgm + GIN index）
 検索フィールド: タイトル、著者名、ISBN、出版社
+
+データ修正フロー:
+  - **マスターデータの誤り**: ユーザーは「情報の誤りを報告」ボタンから管理者に通知可能。管理者は管理者ダッシュボードでマスターデータを修正できる。
+  - **クレジット表記**: 書籍詳細画面には、データ取得元（Google Books, Rakuten Books等）へのリンクまたはクレジットを表示する（各API利用規約に準拠）。
 ```
 
 #### 4.2.3 バーコードスキャン（Webカメラ）
@@ -324,7 +331,14 @@ book-stack-hub/
   2. html5-qrcodeライブラリでWebカメラを起動
   3. EAN-13形式のバーコードを検出
   4. ISBNを抽出してAPI検索を自動実行
+  3. EAN-13形式のバーコードを検出
+  4. ISBNを抽出してAPI検索を自動実行
   5. 検索結果を表示し、ユーザーが確認して本棚に追加
+
+連続スキャンモード（一括登録）:
+  - **モード切り替え**: 「単発」と「連続」をトグルで切り替え可能。
+  - **挙動**: スキャン成功時に確認ダイアログを出さず、自動的に「蔵書」ステータスでバックグラウンド登録し、即座に次のスキャン待ち受け状態に戻る。
+  - **フィードバック**: 画面下部にスキャン済み書籍のサムネイルリストをリアルタイム表示し、バイブレーションや効果音で成功を通知。
 ```
 
 #### 4.2.4 書籍表紙画像のキャッシュ
@@ -1029,7 +1043,12 @@ Reviews    ReadingLogs    Tags ─── UserBookTags
   - `X-Frame-Options: DENY`
   - `X-XSS-Protection: 1; mode=block`
   - `Strict-Transport-Security: max-age=31536000; includeSubDomains`
-  - `Content-Security-Policy: default-src 'self'; ...`
+  - `Common-Security-Policy: default-src 'self'; ...`
+
+ホットリンク対策（Hotlink Protection）:
+  - Cloudflareの設定で、画像ファイル（.webp, .png, .jpg）への直リンクを禁止する。
+  - **許可オリジン**: 自サイトドメイン、主要SNS（Twitter, Facebook, LINE, Discord, Slack）のUser-Agent/Refererのみ許可。
+  - これにより、意図しないサイトでの画像表示による帯域消費を防ぐ。
 
 ### 8.4 データ保護
 
@@ -1223,8 +1242,8 @@ jobs:
 
 ```
 Google Books API障害時:
-  1. NDLサーチAPIにフォールバック
-  2. NDLも障害の場合、キャッシュ済みデータのみで応答
+  1. 楽天ブックスAPIにフォールバック
+  2. NDLサーチAPIにフォールバック
   3. すべて失敗: EXTERNAL_API_ERROR を返却 + 「カスタム書籍として手動登録」を案内
 
 タイムアウト設定:
