@@ -31,10 +31,14 @@ COPY fonts/ /app/fonts/
 COPY app/ /app/app/
 COPY alembic/ /app/alembic/
 COPY alembic.ini /app/alembic.ini
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 
-# Create data directories
-RUN mkdir -p /data/images /data/avatars
+# Create data directories with write permissions for non-root users
+RUN mkdir -p /data/images /data/avatars /data/celery && \
+    chmod 777 /data/images /data/avatars /data/celery && \
+    chmod +x /app/docker-entrypoint.sh
 
 EXPOSE 8000
 
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
