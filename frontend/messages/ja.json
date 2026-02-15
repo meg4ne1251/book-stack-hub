@@ -1,0 +1,48 @@
+{
+  "common": {
+    "appName": "BookStackHub",
+    "loading": "読み込み中...",
+    "save": "保存",
+    "cancel": "キャンセル",
+    "delete": "削除",
+    "edit": "編集",
+    "search": "検索",
+    "back": "戻る",
+    "next": "次へ",
+    "previous": "前へ",
+    "confirm": "確認",
+    "close": "閉じる"
+  },
+  "auth": {
+    "login": "ログイン",
+    "register": "新規登録",
+    "logout": "ログアウト",
+    "email": "メールアドレス",
+    "password": "パスワード",
+    "username": "ユーザー名",
+    "displayName": "表示名",
+    "forgotPassword": "パスワードをお忘れですか？",
+    "resetPassword": "パスワードをリセット",
+    "invalidCredentials": "メールアドレスまたはパスワードが正しくありません",
+    "sessionExpired": "セッションが切れました。再ログインしてください"
+  },
+  "bookshelf": {
+    "title": "本棚",
+    "addBook": "書籍を追加",
+    "status": {
+      "want_to_read": "読みたい",
+      "unread": "未読",
+      "tsundoku": "積読",
+      "reading": "読書中",
+      "suspended": "中断",
+      "finished": "読了"
+    }
+  },
+  "errors": {
+    "serverError": "サーバーエラーが発生しました。しばらく経ってから再試行してください",
+    "networkError": "インターネット接続を確認してください",
+    "forbidden": "この操作を行う権限がありません",
+    "notFound": "お探しのページは見つかりませんでした",
+    "rateLimited": "リクエスト回数の上限に達しました。しばらくお待ちください"
+  }
+}

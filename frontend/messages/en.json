@@ -1,0 +1,48 @@
+{
+  "common": {
+    "appName": "BookStackHub",
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "search": "Search",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "confirm": "Confirm",
+    "close": "Close"
+  },
+  "auth": {
+    "login": "Log in",
+    "register": "Sign up",
+    "logout": "Log out",
+    "email": "Email",
+    "password": "Password",
+    "username": "Username",
+    "displayName": "Display name",
+    "forgotPassword": "Forgot your password?",
+    "resetPassword": "Reset password",
+    "invalidCredentials": "Invalid email or password",
+    "sessionExpired": "Your session has expired. Please log in again."
+  },
+  "bookshelf": {
+    "title": "Bookshelf",
+    "addBook": "Add book",
+    "status": {
+      "want_to_read": "Want to Read",
+      "unread": "Unread",
+      "tsundoku": "Tsundoku",
+      "reading": "Reading",
+      "suspended": "Suspended",
+      "finished": "Finished"
+    }
+  },
+  "errors": {
+    "serverError": "A server error occurred. Please try again later.",
+    "networkError": "Please check your internet connection.",
+    "forbidden": "You do not have permission to perform this action.",
+    "notFound": "The page you are looking for was not found.",
+    "rateLimited": "Too many requests. Please wait a moment."
+  }
+}
