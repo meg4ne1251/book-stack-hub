@@ -1,7 +1,7 @@
 # BookStackHub — 書籍管理・共有プラットフォーム 要件定義書
 
-> **Version**: 2.0.0  
-> **最終更新日**: 2026-02-14  
+> **Version**: 2.1.0  
+> **最終更新日**: 2026-02-15  
 > **ステータス**: ドラフト
 
 ---
@@ -103,10 +103,17 @@
 
 ### 2.5 外部書籍API
 
+#### フェーズ1（今回）
+
 | API | 用途 | 優先度 | 備考 |
 |:---|:---|:---|:---|
 | **Google Books API** | 書籍検索（国内・洋書） | **主要** | 日本語書籍も収録。表紙画像が豊富 |
 | **楽天ブックス総合検索API** | 国内書籍・コミック・雑誌 | **主要** | 日本の商業出版物に非常に強い。書影充実。ジャンル情報も詳細 |
+
+#### フェーズ1.5以降（将来対応）
+
+| API | 用途 | 優先度 | 備考 |
+|:---|:---|:---|:---|
 | **NDLサーチ OpenSearch API** | 国内書籍の補完検索 | **補完** | 国立国会図書館。ISBN検索に強い。書影APIは2026年3月末終了予定のため書誌情報のみ利用 |
 | **OpenBD 代替API** | 国内書籍の追加補完 | **速度** | 爆速だがカバレッジにムラがある。ISBN検索の一次キャッシュ的に利用 |
 
@@ -159,6 +166,7 @@ services:
   db:           # PostgreSQL（ポート5432）
   redis:        # Redis（ポート6379）
   celery:       # Celery Worker（非同期タスク処理）
+  celery-beat:  # Celery Beat（定期タスクスケジューラ: 物理削除バッチ等）
 
 volumes:
   postgres_data:   # DB永続化
@@ -226,6 +234,12 @@ book-stack-hub/
 | `CELERY_BROKER_URL` | Celeryブローカー | `redis://redis:6379/1` |
 | `ADMIN_EMAIL` | 初期管理者メールアドレス | — |
 | `ADMIN_PASSWORD` | 初期管理者パスワード | — |
+| `AWS_SES_REGION` | AWS SESリージョン | `ap-northeast-1` |
+| `AWS_SES_ACCESS_KEY_ID` | AWS SES アクセスキー | — |
+| `AWS_SES_SECRET_ACCESS_KEY` | AWS SES シークレットキー | — |
+| `AWS_SES_FROM_EMAIL` | メール送信元アドレス | `noreply@bookstackhub.example.com` |
+| `TURNSTILE_SITE_KEY` | Cloudflare Turnstile サイトキー | — |
+| `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile シークレットキー | — |
 
 ---
 
@@ -248,25 +262,28 @@ book-stack-hub/
   - ユーザー名（必須・一意・3〜30文字・英数字とアンダースコアのみ）
   - 表示名（必須・1〜50文字）
   - パスワード（必須・8文字以上・英大文字/小文字/数字/記号のうち3種以上）
+  - **Cloudflare Turnstileトークン**（必須・ボット対策）
 
 処理:
-  1. 入力バリデーション
-  2. メールアドレス・ユーザー名の重複チェック
-  3. パスワードをArgon2idでハッシュ化して保存
-  4. メールアドレス確認メール送信（任意: フェーズ1は省略可。省略時はメール未確認でもログイン可能とする）
-  5. アクセストークン + リフレッシュトークンを発行してレスポンス
+  1. TurnstileトークンをバックエンドでCloudflare APIに検証
+  2. 入力バリデーション
+  3. メールアドレス・ユーザー名の重複チェック
+  4. パスワードをArgon2idでハッシュ化して保存
+  5. メールアドレス確認メール送信（任意: フェーズ1は省略可。省略時はメール未確認でもログイン可能とする）
+  6. アクセストークン + リフレッシュトークンを発行してレスポンス
 ```
 
 #### 4.1.3 ログイン
 
 ```
-入力: メールアドレス + パスワード
+入力: メールアドレス + パスワード + **Cloudflare Turnstileトークン**
 処理:
-  1. メールアドレスでユーザー検索
-  2. Argon2idでパスワード照合
-  3. 失敗時: 「メールアドレスまたはパスワードが正しくありません」（どちらが間違いか特定させない）
-  4. 成功時: アクセストークン + リフレッシュトークンを発行
-  5. ログイン試行回数制限: 同一メールアドレスに対し、15分間で5回失敗するとアカウントを15分間ロック
+  1. TurnstileトークンをバックエンドでCloudflare APIに検証
+  2. メールアドレスでユーザー検索
+  3. Argon2idでパスワード照合
+  4. 失敗時: 「メールアドレスまたはパスワードが正しくありません」（どちらが間違いか特定させない）
+  5. 成功時: アクセストークン + リフレッシュトークンを発行
+  6. レートリミット: 同一IPアドレスからのログイン試行を 10リクエスト/分 に制限（Redisベース）
 ```
 
 #### 4.1.4 ログアウト
@@ -292,8 +309,8 @@ book-stack-hub/
   1. ユーザーがキーワードまたはISBNで検索
   2. バックエンドが以下の順序で外部APIに問い合わせ:
      a. 自社DBのマスター書籍を検索（キャッシュヒット）
-     b. キーワード検索時: Google Books API (洋書・技術書) + 楽天ブックスAPI (国内・コミック) を並行リクエスト
-     c. ISBN検索時: OpenBD -> 楽天ブックス -> Google Books -> NDLサーチ の順でヒットするまで検索
+     b. キーワード検索時: Google Books API + 楽天ブックスAPI を並行リクエスト
+     c. ISBN検索時: 楽天ブックス -> Google Books の順でヒットするまで検索
   3. 結果を統合・重複排除してフロントエンドに返却
   4. ユーザーが書籍を選択して本棚に追加した時点で、マスター書籍としてDBに保存
 
@@ -305,10 +322,13 @@ book-stack-hub/
   - per_page: 1ページあたりの件数（デフォルト: 20、最大: 40）
 
 データ統合ロジック:
-  - **優先順位（書誌情報）**: 楽天ブックス > Google Books > OpenBD > NDLサーチ
-  - **優先順位（書影）**: 楽天ブックス (高画質) > Google Books > OpenBD
+  - **優先順位（書誌情報）**: 楽天ブックス > Google Books
+  - **優先順位（書影）**: 楽天ブックス (高画質) > Google Books
   - **補完**: 上位APIで欠損している項目（出版日、ページ数、あらすじ等）を、下位APIの情報でマージして補完する
   - **同一性判定**: ISBN-13の一致をもって同一書籍とみなす
+
+全体タイムアウト:
+  - 外部API検索全体のタイムアウトを 10秒 とし、それ以上かかる場合は取得できたデータのみでレスポンスを返却（Best Effort）
 ```
 
 #### 4.2.2 アプリ内検索
@@ -331,8 +351,6 @@ book-stack-hub/
   2. html5-qrcodeライブラリでWebカメラを起動
   3. EAN-13形式のバーコードを検出
   4. ISBNを抽出してAPI検索を自動実行
-  3. EAN-13形式のバーコードを検出
-  4. ISBNを抽出してAPI検索を自動実行
   5. 検索結果を表示し、ユーザーが確認して本棚に追加
 
 連続スキャンモード（一括登録）:
@@ -350,12 +368,13 @@ book-stack-hub/
   3. Pillowで以下の処理を実施:
      - 最大幅400pxにリサイズ（アスペクト比維持）
      - WebP形式に変換（品質80）
+     - 再エンコードにより悪意あるペイロードを除去
   4. ファイルパス: /data/images/{isbn_or_id}.webp
   5. DBにはファイル名または相対パスを保存
-  6. 配信URL:
+  6. 配信:
      - フロントエンド: `https://{domain}/static/images/{filename}`
      - Nginx設定: `/static/images/` へのリクエストを Docker Volume 上の格納ディレクトリにマッピング
-  6. 配信: Nginx経由で静的ファイルとして配信（Cache-Control: max-age=2592000）
+     - Nginx経由で静的ファイルとして配信（Cache-Control: max-age=2592000）
 
 ファイルサイズ目安: 1冊あたり 20〜50KB
 ```
@@ -399,8 +418,9 @@ book-stack-hub/
 
 - **評価**: 1〜5の星評価（0.5刻みなし、整数のみ）。null許容
 - **カスタムタグ**: ユーザー独自のタグ付け（1書籍あたり最大10タグ、タグ名最大30文字）
-- **非公開メモ**: Markdown対応のプライベートメモ（最大5000文字）
+- **非公開メモ**: Markdown対応のプライベートメモ（最大5000文字）。フロントエンドでは **react-markdown** + **rehype-sanitize** を使用してXSSを防止
 - **公開レビュー**: 他ユーザーに公開される読書感想（タイトル最大100文字、本文最大10000文字）
+- **所有フラグ（is_owned）**: ステータスとは独立した「物理的所有」を示すフラグ。例: 図書館で借りて読了 → status: `finished`, is_owned: `false`
 
 #### 4.4.3 本棚表示
 
@@ -422,15 +442,19 @@ book-stack-hub/
   - 評価（高い順/低い順）
   - 出版日（新しい順/古い順）
 
-ページネーション: 無限スクロールまたはページネーション（1ページ20件）
+ページネーション:
+  - グリッド表示: 無限スクロール（20件ずつ追加読み込み）
+  - リスト表示・管理画面: ページネーション（1ページ20件）
 ```
 
 #### 4.4.4 シリーズ本の自動グルーピング
 
 - **自動グルーピング**:
   - タイトル解析により、同一シリーズの書籍を自動的にグループ化して表示
-  - ロジック: タイトル末尾の巻数表現（巻、vol、#、数字のみ等）を除去した「シリーズ名」が一致するものをまとめる
+  - ロジック: 正規表現によるタイトル正規化（巻数・スペース除去）を行い、正規化後の「シリーズ名」が**完全一致**するものをまとめる。誤判定防止のため安全側に倒す
+  - 対象パターン: `(1)`, `（1）`, `第1巻`, `Vol.1`, `#1`, 末尾の数字のみ 等
   - 表示: 本棚上で1つの「シリーズフォルダ」として表示し、タップで全巻を展開する機能を提供
+  - **手動編集**: ユーザーがシリーズグループの作成・編集・解除を手動で行えるUIも必須として実装
 
 ### 4.5 読書ログ
 
@@ -464,6 +488,10 @@ book-stack-hub/
 API:
   GET /api/v1/reading-logs/heatmap?year=2026
   レスポンス: { "2026-01-01": { "count": 2, "total_pages": 45 }, ... }
+
+キャッシュ戦略:
+  - ヒートマップデータはログイン時またはバッチ処理で集計し、Redisにキャッシュ（TTL: 1時間）
+  - 読書ログ追加/編集/削除時にキャッシュを無効化
 ```
 
 ### 4.6 プレイリスト・共有機能
@@ -479,8 +507,8 @@ API:
 公開設定:
   - デフォルト: 非公開
   - 公開に変更すると、閲覧専用のユニークURLスラッグを自動生成
-    - 形式: /share/{8文字のランダム英数字}
-  - 例: https://bookstackhub.example.com/share/a1b2c3d4
+    - 生成方法: `secrets.token_urlsafe(16)` を使用し、推測不可能なURLを保証
+    - 形式: /share/{ランダム英数字}
 
 OGP画像生成:
   - プレイリストを公開した際に、Celeryタスクで非同期生成
@@ -493,15 +521,22 @@ OGP画像生成:
 ```
 
 概要: 読了時や推奨したい時に、書籍単体のリッチなシェア画像を動的に生成する
+
 デザイン:
 
 - 書籍の表紙画像（メイン）
 - ユーザーの評価（★）
 - 短い感想・引用（最大140文字）
 - 背景: 表紙画像から抽出したドミナントカラーを使用したぼかし背景
+  - **抽出ライブラリ**: `colorgram.py` または Pillow のヒストグラム機能
+  - **ロジック**: 上位色から彩度が低すぎる色（白・黒・グレー）を除外し、最も面積比が大きい色を採用
+
 サイズ:
+
 - OGPサイズ: 1200×630px
 - ストーリーサイズ: 1080×1920px
+
+フォント: **Noto Sans JP**（Google Fonts）のBold/Regular
 形式: PNG（各SNSでの互換性重視）
 
 ```
@@ -535,7 +570,11 @@ OGP画像生成:
   6. 読書中の書籍
      - 現在「読書中」ステータスの書籍一覧（進捗率表示）
 
-```
+キャッシュ戦略:
+
+- ダッシュボード統計データはRedisにキャッシュ（TTL: 1時間）
+- データ更新時（書籍追加・ステータス変更・ログ追加）に関連キャッシュを無効化
+- ログイン時にバックグラウンドで統計を再集計
 
 ### 4.8 年間読書レポート
 
@@ -556,12 +595,14 @@ SNS共有画像:
 - 上記データを1枚の画像（1080×1920px、スマホフルスクリーン比率）に合成
 - Celeryタスクで非同期生成
 - Pillowでテキスト・グラフ・書影画像を動的にレンダリング
+- **フォント**: Noto Sans JP（Google Fonts）Bold/Regular
+- **デザイン**: 白背景(#FFFFFF)ベース、ブランドカラーをアクセント。中央にタイトル、下部に書影と著者名を配置
 - フォーマット: PNG（SNS共有時の互換性重視）
 - ダウンロードボタンでユーザーが取得可能
 
 生成タイミング:
 
-- 年末（12月31日）に自動生成
+- 年末（12月31日）にCelery Beatで自動生成
 - ダッシュボードから任意のタイミングで手動生成も可能
 
 ```
@@ -605,14 +646,33 @@ SNS共有画像:
 
 対応フォーマット:
 
-- 汎用 CSV / JSON
-- 主要な読書管理サービス（読書メーター等）のエクスポート形式（可能な範囲でパース対応）
+- BookStackHub標準CSV（必須カラム: `isbn` または `isbn13`, `title`）
+- BookStackHub標準JSON（同様のスキーマ）
+- 読書メーターエクスポートCSV対応
+- ブクログエクスポートCSV対応
+
+CSV標準スキーマ:
+
+| カラム名 | 必須 | 説明 |
+|:---|:---|:---|
+| isbn / isbn13 | ○（titleがない場合） | ISBN-10 または ISBN-13 |
+| title | ○（isbnがない場合） | 書籍タイトル |
+| author | - | 著者名（複数の場合はセミコロン区切り） |
+| publisher | - | 出版社 |
+| status | - | ステータス（owned/want_to_read/finished等） |
+| rating | - | 評価（1-5） |
+| memo | - | メモ |
+
 処理フロー:
 
   1. ユーザーがファイルをアップロード
   2. Celeryタスクで非同期バックグラウンド処理
   3. ISBNまたはタイトル・著者名で既存データと照合し、重複をスキップまたはマージ
-  4. 完了時に通知（Websocket または ポーリング）
+  4. 完了時にポーリング（間隔: 5秒）で通知
+
+ポーリング用API:
+  GET /api/v1/tasks/{task_id}/status
+  レスポンス: { "status": "pending" | "processing" | "completed" | "failed", "progress": 75, "total": 100, "errors": [...] }
 
 #### 4.10.2 エクスポート機能
 
@@ -667,10 +727,10 @@ Content-Type: application/json
 
 ページネーション（一覧系）:
   クエリパラメータ: page（デフォルト1）, per_page（デフォルト20, 最大50）
-  レスポンスヘッダ: X-Total-Count, X-Total-Pages
+  ページネーション情報: レスポンスボディ内の meta フィールドに統一
 
 レスポンス形式:
-  成功: { "data": <リソース>, "meta": { "page": 1, "per_page": 20, "total": 100 } }
+  成功: { "data": <リソース>, "meta": { "page": 1, "per_page": 20, "total": 100, "total_pages": 5 } }
   エラー: { "error": { "code": "<エラーコード>", "message": "<メッセージ>", "details": [...] } }
 
 データ契約・スキーマ:
@@ -691,6 +751,8 @@ Content-Type: application/json
 | POST | `/auth/logout` | 必要 | ログアウト |
 | POST | `/auth/refresh` | Cookie | アクセストークン再発行 |
 | GET | `/auth/me` | 必要 | ログインユーザー情報取得 |
+| POST | `/auth/forgot-password` | 不要 | パスワードリセットメール送信 |
+| POST | `/auth/reset-password` | 不要 | パスワードリセット実行（トークン必須） |
 
 #### ユーザー API
 
@@ -700,6 +762,7 @@ Content-Type: application/json
 | PATCH | `/users/{user_id}` | 必要（本人） | プロフィール更新 |
 | DELETE | `/users/{user_id}` | 必要（本人/admin） | アカウント削除（論理削除） |
 | PATCH | `/users/{user_id}/password` | 必要（本人） | パスワード変更 |
+| POST | `/users/{user_id}/avatar` | 必要（本人） | アバター画像アップロード |
 
 #### 書籍 API
 
@@ -792,6 +855,13 @@ Content-Type: application/json
 |:---|:---|:---|:---|
 | GET | `/ogp/playlist/{slug}` | 不要 | プレイリストOGP画像 |
 
+#### ヘルスチェック・タスク API
+
+| メソッド | パス | 認証 | 説明 |
+|:---|:---|:---|:---|
+| GET | `/health` | 不要 | システムヘルスチェック（DB・Redis接続確認） |
+| GET | `/tasks/{task_id}/status` | 必要 | 非同期タスクの進捗確認（ポーリング用） |
+
 ---
 
 ## 6. データモデル
@@ -832,6 +902,7 @@ Reviews    ReadingLogs    Tags ─── UserBookTags
 | locale | VARCHAR(5) | NOT NULL, DEFAULT 'ja' | 言語設定（ja/en） |
 | role | VARCHAR(10) | NOT NULL, DEFAULT 'user' | ロール（user/admin） |
 | is_active | BOOLEAN | NOT NULL, DEFAULT true | アカウント有効フラグ |
+| is_profile_public | BOOLEAN | NOT NULL, DEFAULT true | プロフィール公開フラグ（falseの場合、他ユーザーから本棚非公開） |
 | created_at | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | 作成日時 |
 | updated_at | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | 更新日時 |
 
@@ -853,7 +924,7 @@ Reviews    ReadingLogs    Tags ─── UserBookTags
 | cover_image_original_url | VARCHAR(1000) | NULL | 元画像URL |
 | categories | JSONB | NOT NULL, DEFAULT '[]' | カテゴリリスト |
 | language | VARCHAR(10) | NULL | 言語コード |
-| source | VARCHAR(20) | NOT NULL | 取得元（google_books/ndl/openbd/custom） |
+| source | VARCHAR(20) | NOT NULL | 取得元（google_books/rakuten/ndl/openbd/custom） |
 | source_id | VARCHAR(100) | NULL | 外部APIのID |
 | is_custom | BOOLEAN | NOT NULL, DEFAULT false | カスタム書籍フラグ |
 | created_by | UUID | NULL, FK(users.id) | カスタム書籍の作成者 |
@@ -967,6 +1038,19 @@ Reviews    ReadingLogs    Tags ─── UserBookTags
 | expires_at | TIMESTAMPTZ | NOT NULL | 有効期限 |
 | created_at | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | 作成日時 |
 
+#### password_reset_tokens
+
+| カラム | 型 | 制約 | 説明 |
+|:---|:---|:---|:---|
+| id | UUID | PK | トークンID |
+| user_id | UUID | FK(users.id), NOT NULL | ユーザーID |
+| token_hash | VARCHAR(255) | UNIQUE, NOT NULL | トークンのSHA-256ハッシュ |
+| expires_at | TIMESTAMPTZ | NOT NULL | 有効期限（1時間） |
+| used_at | TIMESTAMPTZ | NULL | 使用日時 |
+| created_at | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | 作成日時 |
+
+> **`updated_at` 自動更新**: 全テーブルの `updated_at` はSQLAlchemyの `onupdate=func.now()` を採用し、レコード更新時に自動で現在時刻を設定する。
+
 ---
 
 ## 7. 画面一覧・UI設計指針
@@ -978,6 +1062,8 @@ Reviews    ReadingLogs    Tags ─── UserBookTags
 | `/` | ランディングページ | 不要 | アプリ紹介・ログインへの導線 |
 | `/login` | ログイン | 不要 | ログインフォーム |
 | `/register` | ユーザー登録 | 不要 | 登録フォーム |
+| `/forgot-password` | パスワードリセット申請 | 不要 | メールアドレス入力フォーム |
+| `/reset-password` | パスワードリセット実行 | 不要 | 新パスワード入力フォーム（トークン付きURL経由） |
 | `/dashboard` | ダッシュボード | 必要 | メイン画面（統計・検索・本棚概要） |
 | `/bookshelf` | 本棚 | 必要 | 書籍管理（グリッド/リスト表示） |
 | `/books/{id}` | 書籍詳細 | 必要 | 書籍情報・レビュー・本棚への追加操作 |
@@ -991,7 +1077,22 @@ Reviews    ReadingLogs    Tags ─── UserBookTags
 | `/users/{username}` | ユーザープロフィール | 必要 | 他ユーザーの公開情報（公開本棚・プレイリスト） |
 | `/admin` | 管理者ダッシュボード | admin | ユーザー管理・コンテンツ管理・システム統計 |
 
-### 7.2 レスポンシブ対応
+### 7.2 ランディングページコンテンツ構成
+
+```
+セクション構成:
+  1. ヒーローセクション
+     - キャッチコピー + 新規登録CTAボタン
+     - アプリのスクリーンショットまたはイラスト
+  2. 機能紹介セクション
+     - 本棚管理・読書統計・書籍検索の3つの主要機能をカード形式で紹介
+  3. 開発者ポートフォリオ
+     - 使用技術スタックのロゴ一覧
+  4. フッター
+     - コピーライト・リンク
+```
+
+### 7.3 レスポンシブ対応
 
 ```
 
@@ -1016,17 +1117,18 @@ Reviews    ReadingLogs    Tags ─── UserBookTags
 ### 8.1 認証セキュリティ
 
 - パスワードハッシュ: **Argon2id**（time_cost=3, memory_cost=65536, parallelism=4）
-- JWT: **RS256** または **HS256**（SECRET_KEYは256bit以上のランダム文字列）
+- JWT: **HS256**（SECRET_KEYは256bit以上のランダム文字列。単一サーバー構成のため共有鍵方式で十分）
 - リフレッシュトークン: **SHA-256ハッシュ** でDBに保存（平文保存禁止）
 - CSRF対策: SameSite=Strict Cookie + Origin検証
-- ブルートフォース対策: 同一メール15分間5回失敗でアカウントロック
+- ボット対策: **Cloudflare Turnstile**をログイン・新規登録フォームに導入。アカウントロックは行わない（DoS攻撃ベクター防止）
+- ブルートフォース対策: 同一IPからの認証系APIを 10リクエスト/分 に制限（Redisベース）
 
 ### 8.2 入力バリデーション
 
 - すべてのAPIリクエストは **Pydanticスキーマ** で厳格にバリデーション
 - SQLインジェクション: **SQLAlchemy ORM** によるパラメータバインディング（生SQLの使用禁止）
 - XSS: フロントエンドでのHTMLエスケープ + **Content-Security-Policy** ヘッダー設定
-- ファイルアップロード: MIMEタイプ検証（JPEG/PNG/WebPのみ）、ファイルサイズ上限5MB、ファイル名のサニタイズ
+- ファイルアップロード: MIMEタイプ検証（JPEG/PNG/WebPのみ）、マジックバイト検証、ファイルサイズ上限5MB、ファイル名のサニタイズ、**Pillowによる再エンコード**（悪意あるペイロード除去）
 
 ### 8.3 インフラセキュリティ
 
@@ -1043,17 +1145,18 @@ Reviews    ReadingLogs    Tags ─── UserBookTags
   - `X-Frame-Options: DENY`
   - `X-XSS-Protection: 1; mode=block`
   - `Strict-Transport-Security: max-age=31536000; includeSubDomains`
-  - `Common-Security-Policy: default-src 'self'; ...`
+  - `Content-Security-Policy: default-src 'self'; ...`
 
 ホットリンク対策（Hotlink Protection）:
-  - Cloudflareの設定で、画像ファイル（.webp, .png, .jpg）への直リンクを禁止する。
-  - **許可オリジン**: 自サイトドメイン、主要SNS（Twitter, Facebook, LINE, Discord, Slack）のUser-Agent/Refererのみ許可。
-  - これにより、意図しないサイトでの画像表示による帯域消費を防ぐ。
+
+- Cloudflareの設定で、画像ファイル（.webp, .png, .jpg）への直リンクを禁止する。
+- **許可オリジン**: 自サイトドメイン、主要SNS（Twitter, Facebook, LINE, Discord, Slack）のUser-Agent/Refererのみ許可。
+- これにより、意図しないサイトでの画像表示による帯域消費を防ぐ。
 
 ### 8.4 データ保護
 
 - DBの個人情報カラムは暗号化を検討（フェーズ1では必須としない）
-- ユーザー削除は**論理削除**（is_active=false）とし、30日後にバッチで物理削除
+- ユーザー削除は**論理削除**（is_active=false）とし、30日後にCelery Beatバッチ（毎日AM 4:00 JST）で物理削除。関連データ（UserBooks, ReadingLogs, Reviews, Playlists, Tags等）もCASCADE制約と明示的な削除処理で完全削除
 - ログにパスワードやトークンを出力しない
 
 ---
@@ -1064,8 +1167,8 @@ Reviews    ReadingLogs    Tags ─── UserBookTags
 
 | 指標 | 目標値 |
 |:---|:---|
-| APIレスポンスタイム（P95） | 200ms以下（DB参照系） |
-| APIレスポンスタイム（P95） | 500ms以下（外部API検索） |
+| APIレスポンスタイム（P95） | 500ms以下（DB参照系） |
+| APIレスポンスタイム（P95） | 1000ms以下（検索・集計系、Redisキャッシュ活用前提） |
 | ページ初期表示（LCP） | 2.5秒以下 |
 | 同時接続ユーザー数 | 50ユーザー（自宅サーバー想定） |
 | DB接続プール | 最大20コネクション |
@@ -1145,8 +1248,9 @@ Reviews    ReadingLogs    Tags ─── UserBookTags
 
 日付・数値フォーマット:
 
-- ja: 2026年2月14日, ¥1,500
-- en: February 14, 2026, $15.00（通貨は表示しない、数値のみ）
+- ja: 2026年2月14日
+- en: February 14, 2026
+- 通貨: DB保存は数値のみ。表示はフロントエンドのロケール設定に依存（通貨記号は表示しない、数値フォーマットのみ）
 
 ```
 
@@ -1298,8 +1402,111 @@ Git:
 - 書籍のAIレコメンデーション
 - 読書チャレンジ（年間目標設定）
 - スマートプレイリスト（条件による自動生成）
-- メールアドレス確認・パスワードリセット機能
+- メールアドレス確認機能
+- OpenBD / NDLサーチAPI統合（フェーズ1.5）
+- WebSocketによるリアルタイム通知
 - **読書メモのOCR取り込み機能**:
   - スマホカメラで書籍のページを撮影し、テキストを自動抽出
   - 技術: Google Cloud Vision API, Tesseract, または iOS/Android OS標準のOCR機能（Live Text）を活用
   - UI: 抽出したテキストを選択し、「引用」または「メモ」として読書ログに保存する機能
+
+### C. Celeryタスク共通仕様
+
+```
+全タスク共通設定:
+  - acks_late: true（タスク完了後に確認応答、完了保証）
+  - 最大リトライ: 3回
+  - リトライ間隔: 指数バックオフ（8秒, 64秒, 512秒）
+  - タスクタイムアウト: 600秒（10分）
+  - 失敗時: ログにエラー記録。ユーザー向けはポーリングAPI経由で通知
+
+タスク一覧:
+  - OGP画像生成（プレイリスト公開時）
+  - SNS共有画像生成（書籍・年間レポート）
+  - データインポート処理
+  - データエクスポート処理
+  - 物理削除バッチ（Celery Beat、毎日AM 4:00）
+  - 年間レポート自動生成（Celery Beat、12月31日）
+
+進捗確認API:
+  GET /api/v1/tasks/{task_id}/status
+  レスポンス: { "status": "pending" | "processing" | "completed" | "failed", "progress": 75, "total": 100, "errors": [...] }
+```
+
+### D. 外部APIレスポンスマッピング
+
+#### Google Books API → booksテーブル
+
+| Google Books フィールド | books カラム | 備考 |
+|:---|:---|:---|
+| `volumeInfo.industryIdentifiers[type=ISBN_13].identifier` | isbn_13 | — |
+| `volumeInfo.industryIdentifiers[type=ISBN_10].identifier` | isbn_10 | — |
+| `volumeInfo.title` | title | — |
+| `volumeInfo.subtitle` | subtitle | — |
+| `volumeInfo.authors` | authors | JSON配列として保存 |
+| `volumeInfo.publisher` | publisher | — |
+| `volumeInfo.publishedDate` | published_date | YYYY or YYYY-MM-DD形式をパース |
+| `volumeInfo.description` | description | — |
+| `volumeInfo.pageCount` | page_count | — |
+| `volumeInfo.imageLinks.thumbnail` | cover_image_original_url | ダウンロード後WebP変換 |
+| `volumeInfo.categories` | categories | JSON配列として保存 |
+| `volumeInfo.language` | language | — |
+| `id` | source_id | — |
+| — | source | `"google_books"` 固定 |
+
+#### 楽天ブックスAPI → booksテーブル
+
+| 楽天ブックス フィールド | books カラム | 備考 |
+|:---|:---|:---|
+| `isbn` | isbn_13 | — |
+| `title` | title | — |
+| `subTitle` | subtitle | — |
+| `author` | authors | スラッシュ区切り→JSON配列に変換 |
+| `publisherName` | publisher | — |
+| `salesDate` | published_date | 「YYYY年MM月DD日」形式をパース |
+| `itemCaption` | description | — |
+| `largeImageUrl` | cover_image_original_url | 高画質。ダウンロード後WebP変換 |
+| `booksGenreId` | categories | 楽天ジャンルIDをカテゴリ名に変換 |
+| `itemUrl` | source_id | 楽天商品URL |
+| — | source | `"rakuten"` 固定 |
+
+### E. Next.js App Router ディレクトリ構成
+
+```
+frontend/src/app/
+├── layout.tsx              # ルートレイアウト（next-intl Provider）
+├── page.tsx               # ランディングページ (/)
+├── (auth)/                 # 認証不要グループ
+│   ├── login/page.tsx
+│   ├── register/page.tsx
+│   ├── forgot-password/page.tsx
+│   └── reset-password/page.tsx
+├── (main)/                 # 認証必要グループ（ミドルウェアで保護）
+│   ├── layout.tsx           # サイドバー + ヘッダー付きレイアウト
+│   ├── dashboard/page.tsx
+│   ├── bookshelf/page.tsx
+│   ├── books/
+│   │   ├── add/page.tsx
+│   │   └── [id]/page.tsx
+│   ├── reading-log/page.tsx
+│   ├── playlists/
+│   │   ├── page.tsx
+│   │   └── [id]/page.tsx
+│   ├── stats/page.tsx
+│   ├── settings/page.tsx
+│   └── users/[username]/page.tsx
+├── share/[slug]/page.tsx    # 公開プレイリスト（認証不要）
+└── admin/                  # 管理者専用（ロールチェック）
+    └── page.tsx
+```
+
+### F. Zustand ストア分割方針
+
+| ストア名 | 管理する状態 | ファイル名 |
+|:---|:---|:---|
+| `useAuthStore` | ログインユーザー情報、アクセストークン、認証状態 | `stores/authStore.ts` |
+| `useBookshelfStore` | 本棚のフィルター・ソート・表示モード | `stores/bookshelfStore.ts` |
+| `useUIStore` | サイドバー開閉、モーダル状態、Toast通知 | `stores/uiStore.ts` |
+| `useScanStore` | バーコードスキャンのモード・スキャン済みリスト | `stores/scanStore.ts` |
+
+> **サーバー状態の管理**: APIデータの取得・キャッシュ・同期は **TanStack Query** が担当。ZustandはクライアントローカルのUI状態のみを管理する。
