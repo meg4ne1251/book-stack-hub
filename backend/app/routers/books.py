@@ -184,7 +184,7 @@ async def create_custom_book(
         cover_path = convert_and_save_image(image_data)
 
     # 著者リストパース
-    authors_list = [a.strip() for a in authors.split(";") if a.strip()] if authors else []
+    authors_list = [a.strip() for a in authors.split(",") if a.strip()] if authors else []
 
     # ISBN判定
     isbn_10 = isbn if isbn and len(isbn) == 10 else None

@@ -1,7 +1,7 @@
 """ユーザー API"""
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, UploadFile, File
 from sqlalchemy import select
@@ -25,10 +25,17 @@ async def get_user_profile(
     current_user: CurrentUser,
     db: DBSession,
 ):
-    """ユーザープロフィール取得"""
-    result = await db.execute(
-        select(User).where(User.id == uuid.UUID(user_id))
-    )
+    """ユーザープロフィール取得（UUIDまたはusernameで検索）"""
+    # Try UUID first, fall back to username lookup
+    try:
+        parsed_id = uuid.UUID(user_id)
+        result = await db.execute(
+            select(User).where(User.id == parsed_id)
+        )
+    except ValueError:
+        result = await db.execute(
+            select(User).where(User.username == user_id)
+        )
     user = result.scalar_one_or_none()
     if not user:
         raise NotFoundException("User not found")
@@ -105,7 +112,7 @@ async def deactivate_user(
         raise NotFoundException("User not found")
 
     user.is_active = False
-    user.deactivated_at = datetime.utcnow()
+    user.deactivated_at = datetime.now(UTC)
     await db.commit()
 
     return {"message": "Account deactivated"}
@@ -162,10 +169,9 @@ async def upload_avatar(
         raise ValidationException("File too large. Maximum 5MB.")
 
     # Process and save avatar
-    filename = f"{current_user.id}.webp"
-    convert_and_save_avatar(content, filename)
+    convert_and_save_avatar(content, str(current_user.id))
 
-    current_user.avatar_url = f"/api/v1/images/avatars/{filename}"
+    current_user.avatar_url = f"/api/v1/images/avatars/{current_user.id}.webp"
     await db.commit()
     await db.refresh(current_user)
 

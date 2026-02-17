@@ -1,7 +1,7 @@
 """管理者 API"""
 
 import uuid
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter
 from sqlalchemy import func, select, and_
@@ -25,7 +25,7 @@ async def get_admin_stats(
     db: DBSession,
 ):
     """システム統計"""
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     thirty_days_ago = now - timedelta(days=30)
 
     total_users = await db.scalar(select(func.count(User.id)))
@@ -94,7 +94,7 @@ async def list_users(
         for u in users
     ]
 
-    return paginated_response(data, total or 0, page, per_page)
+    return paginated_response(data, page, per_page, total or 0)
 
 
 @router.patch("/users/{user_id}")
@@ -115,7 +115,7 @@ async def update_user(
     if "is_active" in body:
         user.is_active = body["is_active"]
         if not body["is_active"]:
-            user.deactivated_at = datetime.utcnow()
+            user.deactivated_at = datetime.now(UTC)
     if "role" in body:
         user.role = body["role"]
 
@@ -147,7 +147,7 @@ async def delete_user(
         raise NotFoundException("User not found")
 
     user.is_active = False
-    user.deactivated_at = datetime.utcnow()
+    user.deactivated_at = datetime.now(UTC)
     await db.commit()
 
     return {"message": "User deactivated"}
@@ -185,7 +185,7 @@ async def list_public_reviews(
         for r in reviews
     ]
 
-    return paginated_response(data, total or 0, page, per_page)
+    return paginated_response(data, page, per_page, total or 0)
 
 
 @router.patch("/reviews/{review_id}")
@@ -246,7 +246,7 @@ async def list_public_playlists(
         for p in playlists
     ]
 
-    return paginated_response(data, total or 0, page, per_page)
+    return paginated_response(data, page, per_page, total or 0)
 
 
 @router.patch("/playlists/{playlist_id}")

@@ -108,6 +108,53 @@ async def create_reading_log(
     }
 
 
+@router.get("/heatmap")
+async def get_heatmap(
+    current_user: CurrentUser,
+    db: DBSession,
+    year: int = Query(...),
+):
+    """ヒートマップデータ取得（Redisキャッシュ付き）"""
+    import json
+
+    cache_key = f"heatmap:{current_user.id}:{year}"
+
+    # Check cache
+    cached = await redis_client.get(cache_key)
+    if cached:
+        return {"data": json.loads(cached)}
+
+    # Query from DB
+    start_date = date(year, 1, 1)
+    end_date = date(year, 12, 31)
+
+    result = await db.execute(
+        select(
+            ReadingLog.read_date,
+            func.count(ReadingLog.id).label("count"),
+            func.coalesce(func.sum(ReadingLog.pages_read), 0).label("total_pages"),
+        )
+        .where(
+            ReadingLog.user_id == current_user.id,
+            ReadingLog.read_date >= start_date,
+            ReadingLog.read_date <= end_date,
+        )
+        .group_by(ReadingLog.read_date)
+    )
+
+    heatmap_data = {}
+    for row in result:
+        heatmap_data[str(row.read_date)] = {
+            "count": row.count,
+            "total_pages": row.total_pages,
+        }
+
+    # Cache for 1 hour
+    await redis_client.set(cache_key, json.dumps(heatmap_data), ex=3600)
+
+    return {"data": heatmap_data}
+
+
 @router.patch("/{log_id}")
 async def update_reading_log(
     log_id: uuid.UUID,
@@ -166,50 +213,3 @@ async def delete_reading_log(
 
     await db.delete(log)
     await _invalidate_heatmap_cache(current_user.id)
-
-
-@router.get("/heatmap")
-async def get_heatmap(
-    current_user: CurrentUser,
-    db: DBSession,
-    year: int = Query(...),
-):
-    """ヒートマップデータ取得（Redisキャッシュ付き）"""
-    import json
-
-    cache_key = f"heatmap:{current_user.id}:{year}"
-
-    # Check cache
-    cached = await redis_client.get(cache_key)
-    if cached:
-        return {"data": json.loads(cached)}
-
-    # Query from DB
-    start_date = date(year, 1, 1)
-    end_date = date(year, 12, 31)
-
-    result = await db.execute(
-        select(
-            ReadingLog.read_date,
-            func.count(ReadingLog.id).label("count"),
-            func.coalesce(func.sum(ReadingLog.pages_read), 0).label("total_pages"),
-        )
-        .where(
-            ReadingLog.user_id == current_user.id,
-            ReadingLog.read_date >= start_date,
-            ReadingLog.read_date <= end_date,
-        )
-        .group_by(ReadingLog.read_date)
-    )
-
-    heatmap_data = {}
-    for row in result:
-        heatmap_data[str(row.read_date)] = {
-            "count": row.count,
-            "total_pages": row.total_pages,
-        }
-
-    # Cache for 1 hour
-    await redis_client.set(cache_key, json.dumps(heatmap_data), ex=3600)
-
-    return {"data": heatmap_data}

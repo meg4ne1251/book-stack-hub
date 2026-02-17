@@ -5,7 +5,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { apiClient } from "@/lib/api-client";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { setUser, setLoading } = useAuthStore();
+  const { setUser } = useAuthStore();
 
   useEffect(() => {
     const initAuth = async () => {
@@ -26,7 +26,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     initAuth();
-  }, [setUser, setLoading]);
+  }, [setUser]);
 
   return <>{children}</>;
 }
