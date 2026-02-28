@@ -83,10 +83,20 @@ async def create_reading_log(
     db: DBSession,
 ):
     """読書ログ記録"""
+    try:
+        book_uuid = uuid.UUID(body.book_id)
+    except ValueError:
+        raise ValidationException("Invalid book_id format")
+
+    try:
+        read_date = date.fromisoformat(body.read_date)
+    except ValueError:
+        raise ValidationException("Invalid date format. Use YYYY-MM-DD.")
+
     log = ReadingLog(
         user_id=current_user.id,
-        book_id=uuid.UUID(body.book_id),
-        read_date=date.fromisoformat(body.read_date),
+        book_id=book_uuid,
+        read_date=read_date,
         pages_read=body.pages_read,
         minutes_read=body.minutes_read,
         note=body.note,
@@ -176,7 +186,10 @@ async def update_reading_log(
     update_data = body.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         if key == "read_date" and value:
-            value = date.fromisoformat(value)
+            try:
+                value = date.fromisoformat(value)
+            except ValueError:
+                raise ValidationException("Invalid date format. Use YYYY-MM-DD.")
         setattr(log, key, value)
 
     await _invalidate_heatmap_cache(current_user.id)

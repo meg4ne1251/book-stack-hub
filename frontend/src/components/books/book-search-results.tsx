@@ -18,14 +18,14 @@ export function BookSearchResults({
 }: BookSearchResultsProps) {
   if (loading) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-3">
         {[...Array(3)].map((_, i) => (
-          <div key={i} className="flex gap-4 p-4 border border-border rounded-lg animate-pulse">
-            <div className="w-20 h-28 bg-muted rounded" />
+          <div key={i} className="flex gap-3 p-3 border border-stone-200 rounded animate-pulse">
+            <div className="w-16 h-24 bg-stone-100 rounded" />
             <div className="flex-1 space-y-2">
-              <div className="h-5 bg-muted rounded w-3/4" />
-              <div className="h-4 bg-muted rounded w-1/2" />
-              <div className="h-4 bg-muted rounded w-1/4" />
+              <div className="h-4 bg-stone-100 rounded w-3/4" />
+              <div className="h-3 bg-stone-100 rounded w-1/2" />
+              <div className="h-3 bg-stone-100 rounded w-1/4" />
             </div>
           </div>
         ))}
@@ -38,13 +38,13 @@ export function BookSearchResults({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {results.map((book) => (
         <div
           key={book.id || `${book.isbn_13}-${book.title}`}
-          className="flex gap-4 p-4 border border-border rounded-lg hover:bg-accent/30 transition-colors"
+          className="flex gap-3 p-3 border border-stone-200 rounded bg-white hover:bg-stone-50 transition-colors"
         >
-          <div className="w-20 h-28 flex-shrink-0 bg-muted rounded overflow-hidden">
+          <div className="w-16 h-24 flex-shrink-0 bg-stone-100 rounded overflow-hidden">
             {book.cover_image_url ? (
               <img
                 src={book.cover_image_url}
@@ -52,23 +52,23 @@ export function BookSearchResults({
                 className="w-full h-full object-cover"
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-[10px] text-muted-foreground p-1 text-center">
+              <div className="w-full h-full flex items-center justify-center text-[10px] text-stone-400 p-1 text-center">
                 No Image
               </div>
             )}
           </div>
 
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-sm truncate">{book.title}</h3>
+            <h3 className="font-medium text-[13px] text-stone-700 truncate">{book.title}</h3>
             {book.subtitle && (
-              <p className="text-xs text-muted-foreground truncate">
+              <p className="text-xs text-stone-400 truncate">
                 {book.subtitle}
               </p>
             )}
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-stone-500 mt-0.5">
               {book.authors?.join(", ") || "著者不明"}
             </p>
-            <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2 mt-0.5 text-xs text-stone-400">
               {book.publisher && <span>{book.publisher}</span>}
               {book.published_date && (
                 <>
@@ -78,7 +78,7 @@ export function BookSearchResults({
               )}
             </div>
             {book.isbn_13 && (
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-xs text-stone-400 mt-0.5">
                 ISBN: {book.isbn_13}
               </p>
             )}

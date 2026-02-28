@@ -33,23 +33,23 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="w-full max-w-sm space-y-6">
+    <div className="min-h-screen flex items-center justify-center bg-[#faf7f2] px-4">
+      <div className="w-full max-w-sm space-y-5">
         <div className="text-center">
-          <h1 className="text-2xl font-bold">パスワードリセット</h1>
-          <p className="text-sm text-muted-foreground mt-2">
+          <h1 className="font-serif text-xl font-bold text-stone-800">パスワードリセット</h1>
+          <p className="text-[13px] text-stone-400 mt-1">
             登録メールアドレスにリセットリンクを送信します
           </p>
         </div>
 
         {sent ? (
-          <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-4 text-center">
-            <p className="text-sm text-green-700 dark:text-green-300">
+          <div className="bg-green-50 border border-green-200 rounded p-4 text-center">
+            <p className="text-[13px] text-green-700">
               パスワードリセットメールを送信しました。メールをご確認ください。
             </p>
             <Link
               href="/login"
-              className="text-sm text-primary hover:underline mt-4 inline-block"
+              className="text-[13px] text-amber-800 hover:underline mt-3 inline-block"
             >
               ログインに戻る
             </Link>
@@ -57,7 +57,7 @@ export default function ForgotPasswordPage() {
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-              <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-md">
+              <div className="p-3 bg-red-50 text-red-700 text-[13px] rounded border border-red-200">
                 {error}
               </div>
             )}
@@ -78,8 +78,8 @@ export default function ForgotPasswordPage() {
               {loading ? "送信中..." : "リセットリンクを送信"}
             </Button>
 
-            <p className="text-center text-sm text-muted-foreground">
-              <Link href="/login" className="text-primary hover:underline">
+            <p className="text-center text-[13px] text-stone-400">
+              <Link href="/login" className="text-amber-800 hover:underline">
                 ログインに戻る
               </Link>
             </p>

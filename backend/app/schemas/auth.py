@@ -3,6 +3,24 @@ import re
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
+def validate_password_strength(password: str) -> str:
+    """共通パスワード強度バリデーション: 4種のうち3種以上必須"""
+    categories = 0
+    if re.search(r"[a-z]", password):
+        categories += 1
+    if re.search(r"[A-Z]", password):
+        categories += 1
+    if re.search(r"[0-9]", password):
+        categories += 1
+    if re.search(r"[^a-zA-Z0-9]", password):
+        categories += 1
+    if categories < 3:
+        raise ValueError(
+            "Password must contain at least 3 of: lowercase, uppercase, digits, special characters"
+        )
+    return password
+
+
 class RegisterRequest(BaseModel):
     email: EmailStr
     username: str = Field(min_length=3, max_length=30)
@@ -19,21 +37,8 @@ class RegisterRequest(BaseModel):
 
     @field_validator("password")
     @classmethod
-    def validate_password_strength(cls, v: str) -> str:
-        categories = 0
-        if re.search(r"[a-z]", v):
-            categories += 1
-        if re.search(r"[A-Z]", v):
-            categories += 1
-        if re.search(r"[0-9]", v):
-            categories += 1
-        if re.search(r"[^a-zA-Z0-9]", v):
-            categories += 1
-        if categories < 3:
-            raise ValueError(
-                "Password must contain at least 3 of: lowercase, uppercase, digits, special characters"
-            )
-        return v
+    def check_password_strength(cls, v: str) -> str:
+        return validate_password_strength(v)
 
 
 class LoginRequest(BaseModel):
@@ -82,21 +87,8 @@ class ResetPasswordRequest(BaseModel):
 
     @field_validator("new_password")
     @classmethod
-    def validate_password_strength(cls, v: str) -> str:
-        categories = 0
-        if re.search(r"[a-z]", v):
-            categories += 1
-        if re.search(r"[A-Z]", v):
-            categories += 1
-        if re.search(r"[0-9]", v):
-            categories += 1
-        if re.search(r"[^a-zA-Z0-9]", v):
-            categories += 1
-        if categories < 3:
-            raise ValueError(
-                "Password must contain at least 3 of: lowercase, uppercase, digits, special characters"
-            )
-        return v
+    def check_password_strength(cls, v: str) -> str:
+        return validate_password_strength(v)
 
 
 class ChangePasswordRequest(BaseModel):
@@ -105,18 +97,5 @@ class ChangePasswordRequest(BaseModel):
 
     @field_validator("new_password")
     @classmethod
-    def validate_password_strength(cls, v: str) -> str:
-        categories = 0
-        if re.search(r"[a-z]", v):
-            categories += 1
-        if re.search(r"[A-Z]", v):
-            categories += 1
-        if re.search(r"[0-9]", v):
-            categories += 1
-        if re.search(r"[^a-zA-Z0-9]", v):
-            categories += 1
-        if categories < 3:
-            raise ValueError(
-                "Password must contain at least 3 of: lowercase, uppercase, digits, special characters"
-            )
-        return v
+    def check_password_strength(cls, v: str) -> str:
+        return validate_password_strength(v)

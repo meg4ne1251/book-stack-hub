@@ -1,6 +1,6 @@
 """ユーザー書籍API（本棚）"""
 import uuid
-from datetime import date
+from datetime import datetime
 
 from fastapi import APIRouter, Query
 from sqlalchemy import func, select
@@ -101,7 +101,10 @@ async def add_book_to_shelf(
     db: DBSession,
 ):
     """書籍を本棚に追加"""
-    book_id = uuid.UUID(body.book_id)
+    try:
+        book_id = uuid.UUID(body.book_id)
+    except ValueError:
+        raise ValidationException("Invalid book_id format")
 
     # 書籍の存在確認
     result = await db.execute(select(Book).where(Book.id == book_id))
@@ -122,9 +125,6 @@ async def add_book_to_shelf(
     )
     if result.scalar_one_or_none():
         raise AlreadyExistsException("Book already in your shelf")
-
-    if body.status not in VALID_STATUSES:
-        raise ValidationException(f"Invalid status: {body.status}")
 
     user_book = UserBook(
         user_id=current_user.id,
@@ -164,13 +164,12 @@ async def update_user_book(
 
     update_data = body.model_dump(exclude_unset=True)
 
-    if "status" in update_data:
-        if update_data["status"] not in VALID_STATUSES:
-            raise ValidationException(f"Invalid status: {update_data['status']}")
-
     for key, value in update_data.items():
         if key in ("started_reading_at", "finished_reading_at") and value:
-            value = date.fromisoformat(value)
+            try:
+                value = datetime.fromisoformat(value)
+            except ValueError:
+                raise ValidationException(f"Invalid date format for {key}. Use ISO 8601 format.")
         setattr(user_book, key, value)
 
     return {"data": _user_book_to_response(user_book)}

@@ -10,6 +10,7 @@ interface ApiError {
 
 class ApiClient {
   private accessToken: string | null = null;
+  private refreshPromise: Promise<boolean> | null = null;
 
   setAccessToken(token: string | null) {
     this.accessToken = token;
@@ -19,9 +20,37 @@ class ApiClient {
     return this.accessToken;
   }
 
+  private async tryRefreshToken(): Promise<boolean> {
+    // Deduplicate concurrent refresh attempts
+    if (this.refreshPromise) {
+      return this.refreshPromise;
+    }
+
+    this.refreshPromise = (async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+        });
+        if (!response.ok) return false;
+        const data = await response.json();
+        this.accessToken = data.access_token;
+        return true;
+      } catch {
+        return false;
+      } finally {
+        this.refreshPromise = null;
+      }
+    })();
+
+    return this.refreshPromise;
+  }
+
   private async request<T>(
     path: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    isRetry = false
   ): Promise<T> {
     const headers: HeadersInit = {
       ...(options.headers || {}),
@@ -43,6 +72,23 @@ class ApiClient {
       headers,
       credentials: "include",
     });
+
+    // Auto-refresh on TOKEN_EXPIRED (one retry only)
+    if (response.status === 401 && !isRetry) {
+      const errorData = await response.json().catch(() => null);
+      if (errorData?.error?.code === "TOKEN_EXPIRED") {
+        const refreshed = await this.tryRefreshToken();
+        if (refreshed) {
+          return this.request<T>(path, options, true);
+        }
+      }
+      throw new ApiRequestError(
+        response.status,
+        errorData?.error?.code || "UNAUTHORIZED",
+        errorData?.error?.message || "Authentication required",
+        errorData?.error?.details || []
+      );
+    }
 
     if (!response.ok) {
       const errorData: ApiError = await response.json().catch(() => ({
@@ -81,7 +127,7 @@ class ApiClient {
   patch<T>(path: string, body?: unknown): Promise<T> {
     return this.request<T>(path, {
       method: "PATCH",
-      body: JSON.stringify(body),
+      body: body instanceof FormData ? body : JSON.stringify(body),
     });
   }
 

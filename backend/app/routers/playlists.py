@@ -118,6 +118,14 @@ async def create_playlist(
     db.add(playlist)
     await db.flush()
 
+    # Reload with relationships to avoid MissingGreenlet
+    result = await db.execute(
+        select(Playlist)
+        .where(Playlist.id == playlist.id)
+        .options(selectinload(Playlist.items).selectinload(PlaylistItem.book))
+    )
+    playlist = result.scalar_one()
+
     return {"data": _playlist_to_response(playlist)}
 
 

@@ -80,21 +80,21 @@ export default function PlaylistsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">プレイリスト</h1>
-        <Button onClick={() => setShowCreate(true)}>新規作成</Button>
+        <h1 className="font-serif text-xl font-bold text-stone-800">プレイリスト</h1>
+        <Button size="sm" onClick={() => setShowCreate(true)}>新規作成</Button>
       </div>
 
       {loading ? (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-24 bg-muted animate-pulse rounded-lg" />
+            <div key={i} className="h-20 bg-stone-100 animate-pulse rounded" />
           ))}
         </div>
       ) : playlists.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">
+        <div className="text-center py-10">
+          <p className="text-stone-400 text-sm">
             プレイリストがありません
           </p>
           <Button className="mt-4" onClick={() => setShowCreate(true)}>
@@ -102,25 +102,25 @@ export default function PlaylistsPage() {
           </Button>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           {playlists.map((pl) => (
             <div
               key={pl.id}
-              className="border border-border rounded-lg p-4 hover:bg-accent/30 transition-colors"
+              className="border border-stone-200 rounded p-3 bg-white hover:bg-stone-50 transition-colors"
             >
               <div className="flex items-start justify-between">
                 <Link
                   href={`/playlists/${pl.id}`}
                   className="flex-1 min-w-0"
                 >
-                  <h3 className="font-semibold truncate">{pl.title}</h3>
+                  <h3 className="font-medium text-sm text-stone-700 truncate">{pl.title}</h3>
                   {pl.description && (
-                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                    <p className="text-[13px] text-stone-400 mt-0.5 line-clamp-2">
                       {pl.description}
                     </p>
                   )}
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className="text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <span className="text-xs text-stone-400">
                       {pl.items?.length || 0}冊
                     </span>
                     {pl.is_public ? (
@@ -137,7 +137,7 @@ export default function PlaylistsPage() {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="text-destructive ml-2"
+                  className="text-red-600 ml-2"
                   onClick={() => handleDelete(pl.id)}
                 >
                   削除
@@ -150,7 +150,7 @@ export default function PlaylistsPage() {
                   {pl.items.slice(0, 5).map((item) => (
                     <div
                       key={item.id}
-                      className="w-10 h-14 flex-shrink-0 bg-muted rounded overflow-hidden"
+                      className="w-10 h-14 flex-shrink-0 bg-stone-100 rounded overflow-hidden"
                     >
                       {item.book.cover_image_url ? (
                         <img
@@ -159,12 +159,12 @@ export default function PlaylistsPage() {
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <div className="w-full h-full bg-muted" />
+                        <div className="w-full h-full bg-stone-100" />
                       )}
                     </div>
                   ))}
                   {pl.items.length > 5 && (
-                    <div className="w-10 h-14 flex-shrink-0 bg-muted rounded flex items-center justify-center text-xs text-muted-foreground">
+                    <div className="w-10 h-14 flex-shrink-0 bg-stone-100 rounded flex items-center justify-center text-xs text-stone-400">
                       +{pl.items.length - 5}
                     </div>
                   )}
@@ -202,7 +202,7 @@ export default function PlaylistsPage() {
               />
             </div>
 
-            {error && <p className="text-sm text-destructive">{error}</p>}
+            {error && <p className="text-sm text-red-600">{error}</p>}
 
             <div className="flex gap-2 justify-end">
               <Button variant="outline" onClick={() => setShowCreate(false)}>

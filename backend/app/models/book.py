@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Boolean, Date, Integer, String, Text
+from sqlalchemy import Boolean, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -20,33 +20,34 @@ class Book(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     title: Mapped[str] = mapped_column(String(500), nullable=False)
     subtitle: Mapped[str | None] = mapped_column(String(500), nullable=True)
     series_title: Mapped[str | None] = mapped_column(
-        String(200), nullable=True, index=True
+        String(500), nullable=True, index=True
     )
-    volume_number: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    volume_number: Mapped[str | None] = mapped_column(String(50), nullable=True)
     authors: Mapped[list] = mapped_column(
         JSONB, nullable=False, server_default="'[]'::jsonb"
     )
     publisher: Mapped[str | None] = mapped_column(String(200), nullable=True)
-    published_date: Mapped[str | None] = mapped_column(Date, nullable=True)
+    published_date: Mapped[str | None] = mapped_column(
+        String(20), nullable=True
+    )
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     page_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    cover_image_path: Mapped[str | None] = mapped_column(
+    cover_image_url: Mapped[str | None] = mapped_column(
         String(500), nullable=True
-    )
-    cover_image_original_url: Mapped[str | None] = mapped_column(
-        String(1000), nullable=True
     )
     categories: Mapped[list] = mapped_column(
         JSONB, nullable=False, server_default="'[]'::jsonb"
     )
     language: Mapped[str | None] = mapped_column(String(10), nullable=True)
-    source: Mapped[str] = mapped_column(String(20), nullable=False)
-    source_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    source: Mapped[str] = mapped_column(
+        String(50), nullable=False, server_default="'manual'"
+    )
     is_custom: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default="false"
     )
     created_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
 

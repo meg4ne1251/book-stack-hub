@@ -1,14 +1,20 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field
+
+ValidStatus = Literal[
+    "want_to_read", "unread", "tsundoku", "reading", "suspended", "finished"
+]
 
 
 class UserBookCreate(BaseModel):
     book_id: str
-    status: str = "want_to_read"
+    status: ValidStatus = "want_to_read"
     is_owned: bool = False
 
 
 class UserBookUpdate(BaseModel):
-    status: str | None = None
+    status: ValidStatus | None = None
     rating: int | None = Field(default=None, ge=1, le=5)
     private_memo: str | None = Field(default=None, max_length=5000)
     is_owned: bool | None = None

@@ -8,7 +8,7 @@ from sqlalchemy import func, select
 
 from app.dependencies import CurrentUser, DBSession
 from app.models.review import Review
-from app.utils.exceptions import AlreadyExistsException, NotFoundException
+from app.utils.exceptions import AlreadyExistsException, ForbiddenException, NotFoundException, ValidationException
 from app.utils.response import paginated_response
 
 router = APIRouter(tags=["reviews"])
@@ -52,7 +52,10 @@ async def create_review(
     db: DBSession,
 ):
     """レビュー投稿"""
-    book_id = uuid.UUID(body.book_id)
+    try:
+        book_id = uuid.UUID(body.book_id)
+    except ValueError:
+        raise ValidationException("Invalid book_id format")
 
     # 1ユーザー1書籍1レビュー制約チェック
     result = await db.execute(
@@ -113,16 +116,17 @@ async def delete_review(
     current_user: CurrentUser,
     db: DBSession,
 ):
-    """レビュー削除"""
+    """レビュー削除（本人またはadmin）"""
     result = await db.execute(
-        select(Review).where(
-            Review.id == review_id,
-            Review.user_id == current_user.id,
-        )
+        select(Review).where(Review.id == review_id)
     )
     review = result.scalar_one_or_none()
     if not review:
         raise NotFoundException("Review not found")
+
+    # 本人またはadminのみ削除可能
+    if review.user_id != current_user.id and current_user.role != "admin":
+        raise ForbiddenException("Not authorized to delete this review")
 
     await db.delete(review)
 

@@ -1,6 +1,7 @@
 """書籍検索の統合サービス - 外部API + アプリ内検索"""
 import asyncio
 import logging
+import uuid as uuid_mod
 
 from sqlalchemy import or_, select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -122,7 +123,7 @@ async def search_internal(
     db: AsyncSession,
     query: str | None = None,
     isbn: str | None = None,
-    user_id: str | None = None,
+    user_id: str | uuid_mod.UUID | None = None,
     page: int = 1,
     per_page: int = 20,
 ) -> tuple[list[Book], int]:
@@ -153,10 +154,11 @@ async def search_internal(
 
     # カスタム書籍は自分のもののみ表示
     if user_id:
+        uid = uuid_mod.UUID(str(user_id)) if not isinstance(user_id, uuid_mod.UUID) else user_id
         conditions.append(
             or_(
                 Book.is_custom.is_(False),
-                Book.created_by == user_id,
+                Book.created_by == uid,
             )
         )
     else:

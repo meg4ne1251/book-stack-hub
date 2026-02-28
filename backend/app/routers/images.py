@@ -1,5 +1,6 @@
 """画像配信API - 署名付きURL検証 + X-Accel-Redirect"""
 import logging
+import re
 from pathlib import Path
 
 from fastapi import APIRouter, Query
@@ -7,10 +8,20 @@ from fastapi.responses import FileResponse, Response
 
 from app.config import settings
 from app.services.image_service import verify_signed_url
-from app.utils.exceptions import ForbiddenException, NotFoundException
+from app.utils.exceptions import ForbiddenException, NotFoundException, ValidationException
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["images"])
+
+# ファイル名はUUID.webp形式のみ許可（パストラバーサル対策）
+SAFE_FILENAME_PATTERN = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.webp$"
+)
+
+
+def _validate_filename(filename: str) -> None:
+    if not SAFE_FILENAME_PATTERN.match(filename):
+        raise ValidationException("Invalid filename")
 
 
 @router.get("/images/{filename}")
@@ -20,6 +31,8 @@ async def serve_image(
     expires: int = Query(...),
 ):
     """署名付きURLで表紙画像を配信"""
+    _validate_filename(filename)
+
     if not verify_signed_url(filename, token, expires):
         raise ForbiddenException("Invalid or expired image token")
 
@@ -44,6 +57,8 @@ async def serve_avatar(
     expires: int = Query(...),
 ):
     """署名付きURLでアバター画像を配信"""
+    _validate_filename(filename)
+
     if not verify_signed_url(filename, token, expires):
         raise ForbiddenException("Invalid or expired image token")
 

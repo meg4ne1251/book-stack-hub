@@ -6,6 +6,7 @@ interface User {
   username: string;
   display_name: string;
   avatar_url: string | null;
+  bio: string | null;
   role: string;
   locale: string;
   is_profile_public: boolean;

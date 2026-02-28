@@ -2,8 +2,10 @@
 
 import uuid
 from datetime import UTC, datetime, timedelta
+from typing import Literal
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
+from pydantic import BaseModel, Field
 from sqlalchemy import func, select, and_
 
 from app.dependencies import AdminUser, DBSession
@@ -12,11 +14,19 @@ from app.models.book import Book
 from app.models.user_book import UserBook
 from app.models.review import Review
 from app.models.playlist import Playlist
-from app.utils.exceptions import NotFoundException
+from app.utils.exceptions import ForbiddenException, NotFoundException, ValidationException
 from app.utils.response import paginated_response
-from app.utils.pagination import PaginationParams
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+
+class AdminUserUpdate(BaseModel):
+    is_active: bool | None = None
+    role: Literal["user", "admin"] | None = None
+
+
+class AdminVisibilityUpdate(BaseModel):
+    is_public: bool
 
 
 @router.get("/stats")
@@ -31,14 +41,14 @@ async def get_admin_stats(
     total_users = await db.scalar(select(func.count(User.id)))
     active_users_30d = await db.scalar(
         select(func.count(User.id)).where(
-            and_(User.is_active == True, User.created_at >= thirty_days_ago)
+            and_(User.is_active.is_(True), User.updated_at >= thirty_days_ago)
         )
     )
     total_books = await db.scalar(
-        select(func.count(Book.id)).where(Book.is_custom == False)
+        select(func.count(Book.id)).where(Book.is_custom.is_(False))
     )
     total_custom_books = await db.scalar(
-        select(func.count(Book.id)).where(Book.is_custom == True)
+        select(func.count(Book.id)).where(Book.is_custom.is_(True))
     )
     total_reviews = await db.scalar(select(func.count(Review.id)))
     total_playlists = await db.scalar(select(func.count(Playlist.id)))
@@ -57,8 +67,8 @@ async def get_admin_stats(
 async def list_users(
     admin: AdminUser,
     db: DBSession,
-    page: int = 1,
-    per_page: int = 20,
+    page: int = Query(default=1, ge=1),
+    per_page: int = Query(default=20, ge=1, le=50),
     q: str | None = None,
 ):
     """ユーザー一覧"""
@@ -100,27 +110,34 @@ async def list_users(
 @router.patch("/users/{user_id}")
 async def update_user(
     user_id: str,
-    body: dict,
+    body: AdminUserUpdate,
     admin: AdminUser,
     db: DBSession,
 ):
     """ユーザー状態変更"""
+    try:
+        parsed_user_id = uuid.UUID(user_id)
+    except ValueError:
+        raise ValidationException("Invalid user_id format")
+
+    # 管理者自身への変更を禁止（自己ロック・自己降格防止）
+    if parsed_user_id == admin.id:
+        raise ForbiddenException("Cannot modify your own account via admin API")
+
     result = await db.execute(
-        select(User).where(User.id == uuid.UUID(user_id))
+        select(User).where(User.id == parsed_user_id)
     )
     user = result.scalar_one_or_none()
     if not user:
         raise NotFoundException("User not found")
 
-    if "is_active" in body:
-        user.is_active = body["is_active"]
-        if not body["is_active"]:
+    update_data = body.model_dump(exclude_unset=True)
+    if "is_active" in update_data:
+        user.is_active = update_data["is_active"]
+        if not update_data["is_active"]:
             user.deactivated_at = datetime.now(UTC)
-    if "role" in body:
-        user.role = body["role"]
-
-    await db.commit()
-    await db.refresh(user)
+    if "role" in update_data:
+        user.role = update_data["role"]
 
     return {
         "id": str(user.id),
@@ -139,8 +156,17 @@ async def delete_user(
     db: DBSession,
 ):
     """ユーザー削除（論理削除）"""
+    try:
+        parsed_user_id = uuid.UUID(user_id)
+    except ValueError:
+        raise ValidationException("Invalid user_id format")
+
+    # 管理者自身の削除を禁止
+    if parsed_user_id == admin.id:
+        raise ForbiddenException("Cannot deactivate your own account via admin API")
+
     result = await db.execute(
-        select(User).where(User.id == uuid.UUID(user_id))
+        select(User).where(User.id == parsed_user_id)
     )
     user = result.scalar_one_or_none()
     if not user:
@@ -148,7 +174,6 @@ async def delete_user(
 
     user.is_active = False
     user.deactivated_at = datetime.now(UTC)
-    await db.commit()
 
     return {"message": "User deactivated"}
 
@@ -157,12 +182,12 @@ async def delete_user(
 async def list_public_reviews(
     admin: AdminUser,
     db: DBSession,
-    page: int = 1,
-    per_page: int = 20,
+    page: int = Query(default=1, ge=1),
+    per_page: int = Query(default=20, ge=1, le=50),
 ):
     """公開レビュー一覧"""
-    query = select(Review).where(Review.is_public == True)
-    count_query = select(func.count(Review.id)).where(Review.is_public == True)
+    query = select(Review).where(Review.is_public.is_(True))
+    count_query = select(func.count(Review.id)).where(Review.is_public.is_(True))
 
     total = await db.scalar(count_query)
     result = await db.execute(
@@ -191,24 +216,27 @@ async def list_public_reviews(
 @router.patch("/reviews/{review_id}")
 async def update_review_visibility(
     review_id: str,
-    body: dict,
+    body: AdminVisibilityUpdate,
     admin: AdminUser,
     db: DBSession,
 ):
     """レビュー非公開化"""
+    try:
+        parsed_review_id = uuid.UUID(review_id)
+    except ValueError:
+        raise ValidationException("Invalid review_id format")
+
     result = await db.execute(
-        select(Review).where(Review.id == uuid.UUID(review_id))
+        select(Review).where(Review.id == parsed_review_id)
     )
     review = result.scalar_one_or_none()
     if not review:
         raise NotFoundException("Review not found")
 
-    if "is_public" in body:
-        review.is_public = body["is_public"]
-        if not body["is_public"]:
-            review.published_at = None
+    review.is_public = body.is_public
+    if not body.is_public:
+        review.published_at = None
 
-    await db.commit()
     return {"message": "Review updated"}
 
 
@@ -216,13 +244,13 @@ async def update_review_visibility(
 async def list_public_playlists(
     admin: AdminUser,
     db: DBSession,
-    page: int = 1,
-    per_page: int = 20,
+    page: int = Query(default=1, ge=1),
+    per_page: int = Query(default=20, ge=1, le=50),
 ):
     """公開プレイリスト一覧"""
-    query = select(Playlist).where(Playlist.is_public == True)
+    query = select(Playlist).where(Playlist.is_public.is_(True))
     count_query = select(func.count(Playlist.id)).where(
-        Playlist.is_public == True
+        Playlist.is_public.is_(True)
     )
 
     total = await db.scalar(count_query)
@@ -252,22 +280,25 @@ async def list_public_playlists(
 @router.patch("/playlists/{playlist_id}")
 async def update_playlist_visibility(
     playlist_id: str,
-    body: dict,
+    body: AdminVisibilityUpdate,
     admin: AdminUser,
     db: DBSession,
 ):
     """プレイリスト非公開化"""
+    try:
+        parsed_playlist_id = uuid.UUID(playlist_id)
+    except ValueError:
+        raise ValidationException("Invalid playlist_id format")
+
     result = await db.execute(
-        select(Playlist).where(Playlist.id == uuid.UUID(playlist_id))
+        select(Playlist).where(Playlist.id == parsed_playlist_id)
     )
     playlist = result.scalar_one_or_none()
     if not playlist:
         raise NotFoundException("Playlist not found")
 
-    if "is_public" in body:
-        playlist.is_public = body["is_public"]
+    playlist.is_public = body.is_public
 
-    await db.commit()
     return {"message": "Playlist updated"}
 
 
@@ -276,7 +307,7 @@ async def refresh_books(
     admin: AdminUser,
 ):
     """書籍情報更新バッチ手動実行"""
-    from app.tasks.books import refresh_book_data
+    from app.tasks.books import refresh_stale_books
 
-    task = refresh_book_data.delay()
+    task = refresh_stale_books.delay()
     return {"task_id": str(task.id), "message": "Book refresh task queued"}

@@ -68,20 +68,20 @@ export default function ResetPasswordForm() {
 
   if (tokenValid === null) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-muted-foreground">確認中...</p>
+      <div className="min-h-screen flex items-center justify-center bg-[#faf7f2]">
+        <p className="text-stone-400 text-sm">確認中...</p>
       </div>
     );
   }
 
   if (tokenValid === false) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="min-h-screen flex items-center justify-center px-4 bg-[#faf7f2]">
         <div className="text-center space-y-4">
-          <p className="text-destructive">
+          <p className="text-red-600 text-sm">
             無効または期限切れのリセットリンクです
           </p>
-          <Link href="/forgot-password" className="text-primary hover:underline text-sm">
+          <Link href="/forgot-password" className="text-amber-800 hover:underline text-sm">
             パスワードリセットを再度リクエスト
           </Link>
         </div>
@@ -90,23 +90,23 @@ export default function ResetPasswordForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
+    <div className="min-h-screen flex items-center justify-center px-4 bg-[#faf7f2]">
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center">
-          <h1 className="text-2xl font-bold">新しいパスワード</h1>
-          <p className="text-sm text-muted-foreground mt-2">
+          <h1 className="font-serif text-xl font-bold text-stone-800">新しいパスワード</h1>
+          <p className="text-sm text-stone-500 mt-2">
             新しいパスワードを入力してください
           </p>
         </div>
 
         {success ? (
-          <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-4 text-center">
-            <p className="text-sm text-green-700 dark:text-green-300">
+          <div className="bg-green-50 border border-green-200 rounded p-4 text-center">
+            <p className="text-sm text-green-700">
               パスワードが正常にリセットされました
             </p>
             <Link
               href="/login"
-              className="text-sm text-primary hover:underline mt-4 inline-block"
+              className="text-sm text-amber-800 hover:underline mt-4 inline-block"
             >
               ログインする
             </Link>
@@ -114,7 +114,7 @@ export default function ResetPasswordForm() {
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-              <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-md">
+              <div className="p-3 bg-red-50 text-red-700 text-sm rounded border border-red-200">
                 {error}
               </div>
             )}

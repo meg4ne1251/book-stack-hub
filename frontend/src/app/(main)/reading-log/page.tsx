@@ -48,7 +48,7 @@ export default function ReadingLogPage() {
         apiClient.get<PaginatedResponse<ReadingLog>>(
           `/me/reading-logs?page=${page}&per_page=20`
         ),
-        apiClient.get<HeatmapData>(
+        apiClient.get<{ data: HeatmapData }>(
           `/me/reading-logs/heatmap?year=${new Date().getFullYear()}`
         ),
         apiClient.get<PaginatedResponse<UserBook>>(
@@ -57,7 +57,7 @@ export default function ReadingLogPage() {
       ]);
       setLogs(logsRes.data);
       setTotalPages(logsRes.meta.total_pages);
-      setHeatmapData(heatmapRes);
+      setHeatmapData(heatmapRes.data);
       setReadingBooks(booksRes.data);
     } catch {
       // Error handling
@@ -135,34 +135,34 @@ export default function ReadingLogPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">読書ログ</h1>
-        <Button onClick={openNewForm}>ログを記録</Button>
+        <h1 className="font-serif text-xl font-bold text-stone-800">読書ログ</h1>
+        <Button onClick={openNewForm} size="sm">ログを記録</Button>
       </div>
 
       {/* Heatmap */}
-      <section className="bg-card border border-border rounded-lg p-4">
-        <h2 className="text-sm font-medium mb-3">読書ヒートマップ</h2>
+      <section className="bg-white border border-stone-200 rounded p-4">
+        <h2 className="text-[13px] font-medium text-stone-500 mb-3">読書ヒートマップ</h2>
         <ReadingHeatmap data={heatmapData} />
       </section>
 
       {/* Logs list */}
       <section className="space-y-3">
-        <h2 className="text-sm font-medium">読書ログ一覧</h2>
+        <h2 className="text-[13px] font-medium text-stone-500">読書ログ一覧</h2>
 
         {loading ? (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {[...Array(5)].map((_, i) => (
               <div
                 key={i}
-                className="h-16 bg-muted animate-pulse rounded-lg"
+                className="h-14 bg-stone-100 animate-pulse rounded"
               />
             ))}
           </div>
         ) : logs.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">
+          <div className="text-center py-10">
+            <p className="text-stone-400 text-sm">
               まだ読書ログがありません
             </p>
             <Button className="mt-4" onClick={openNewForm}>
@@ -175,18 +175,17 @@ export default function ReadingLogPage() {
               {logs.map((log) => (
                 <div
                   key={log.id}
-                  className="flex items-center gap-4 p-3 border border-border rounded-lg"
-                >
+                  className="flex items-center gap-3 p-3 border border-stone-200 rounded bg-white">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">
+                    <p className="text-[13px] font-medium text-stone-700">
                       {log.read_date}
                     </p>
-                    <div className="flex gap-3 text-xs text-muted-foreground mt-1">
+                    <div className="flex gap-3 text-xs text-stone-400 mt-0.5">
                       {log.pages_read && <span>{log.pages_read}ページ</span>}
                       {log.minutes_read && <span>{log.minutes_read}分</span>}
                     </div>
                     {log.note && (
-                      <p className="text-xs text-muted-foreground mt-1 truncate">
+                      <p className="text-xs text-stone-400 mt-0.5 truncate">
                         {log.note}
                       </p>
                     )}
@@ -202,7 +201,7 @@ export default function ReadingLogPage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="text-destructive"
+                      className="text-red-600"
                       onClick={() => handleDelete(log.id)}
                     >
                       削除
@@ -223,7 +222,7 @@ export default function ReadingLogPage() {
                 >
                   前へ
                 </Button>
-                <span className="flex items-center text-sm text-muted-foreground">
+                <span className="flex items-center text-[13px] text-stone-400">
                   {page} / {totalPages}
                 </span>
                 <Button
@@ -312,7 +311,7 @@ export default function ReadingLogPage() {
             </div>
 
             {formError && (
-              <p className="text-sm text-destructive">{formError}</p>
+              <p className="text-sm text-red-600">{formError}</p>
             )}
 
             <div className="flex gap-2 justify-end">

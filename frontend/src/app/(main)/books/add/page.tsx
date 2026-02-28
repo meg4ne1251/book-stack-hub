@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -33,6 +33,7 @@ interface BookSearchResponse {
 
 export default function BooksAddPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState("search");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchSource, setSearchSource] = useState<"all" | "internal" | "external">("all");
@@ -92,25 +93,60 @@ export default function BooksAddPage() {
     performSearch(searchQuery, searchSource);
   };
 
+  // Auto-search when navigated with ?q= parameter
+  const initialSearchDone = useRef(false);
+  useEffect(() => {
+    if (initialSearchDone.current) return;
+    const q = searchParams.get("q");
+    if (q) {
+      initialSearchDone.current = true;
+      setSearchQuery(q);
+      performSearch(q, searchSource);
+    }
+  }, [searchParams, performSearch, searchSource]);
+
   const handleAddToShelf = (book: Book) => {
     setSelectedBook(book);
     setAddStatus("want_to_read");
     setAddError(null);
   };
 
+  const registerBookIfNeeded = async (book: Book): Promise<string> => {
+    // Internal books already have an id
+    if (book.id) return book.id;
+
+    // External search results need to be registered first
+    const res = await apiClient.post<{ data: Book }>("/books/register", {
+      isbn_10: book.isbn_10,
+      isbn_13: book.isbn_13,
+      title: book.title,
+      subtitle: book.subtitle,
+      authors: book.authors,
+      publisher: book.publisher,
+      published_date: book.published_date,
+      description: book.description,
+      page_count: book.page_count,
+      cover_image_url: book.cover_image_url,
+      categories: book.categories,
+      language: book.language,
+      source: book.source,
+    });
+    return res.data.id;
+  };
+
   const confirmAddToShelf = async () => {
     if (!selectedBook) return;
 
-    setAddingBookId(selectedBook.id);
+    setAddingBookId(selectedBook.id || "pending");
     setAddError(null);
 
     try {
+      const bookId = await registerBookIfNeeded(selectedBook);
       await apiClient.post("/me/books", {
-        book_id: selectedBook.id,
+        book_id: bookId,
         status: addStatus,
       });
       setSelectedBook(null);
-      // Show success feedback
     } catch (err) {
       if (err instanceof ApiRequestError) {
         if (err.code === "ALREADY_EXISTS") {
@@ -138,8 +174,28 @@ export default function BooksAddPage() {
           if (res.data.length > 0) {
             const book = res.data[0];
             try {
+              // Register external book if needed, then add to shelf
+              let bookId = book.id;
+              if (!bookId) {
+                const regRes = await apiClient.post<{ data: Book }>("/books/register", {
+                  isbn_10: book.isbn_10,
+                  isbn_13: book.isbn_13,
+                  title: book.title,
+                  subtitle: book.subtitle,
+                  authors: book.authors,
+                  publisher: book.publisher,
+                  published_date: book.published_date,
+                  description: book.description,
+                  page_count: book.page_count,
+                  cover_image_url: book.cover_image_url,
+                  categories: book.categories,
+                  language: book.language,
+                  source: book.source,
+                });
+                bookId = regRes.data.id;
+              }
               await apiClient.post("/me/books", {
-                book_id: book.id,
+                book_id: bookId,
                 status: "unread" as BookStatus,
                 is_owned: true,
               });
@@ -171,8 +227,8 @@ export default function BooksAddPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold">書籍を追加</h1>
+    <div className="max-w-2xl space-y-5">
+      <h1 className="font-serif text-xl font-bold text-stone-800">書籍を追加</h1>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="w-full">
@@ -216,14 +272,14 @@ export default function BooksAddPage() {
             </form>
 
             {searchError && (
-              <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-md">
+              <div className="p-3 bg-red-50 text-red-700 text-[13px] rounded border border-red-200">
                 {searchError}
               </div>
             )}
 
             {searching && (
-              <p className="text-sm text-muted-foreground">
-                検索中...（混雑により少々お待ちください）
+              <p className="text-[13px] text-stone-400">
+                検索中...
               </p>
             )}
 
@@ -235,12 +291,12 @@ export default function BooksAddPage() {
             />
 
             {hasSearched && !searching && searchResults.length === 0 && !searchError && (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">
+              <div className="text-center py-6">
+                <p className="text-stone-400 text-sm">
                   検索結果が見つかりませんでした
                 </p>
-                <p className="text-sm text-muted-foreground mt-2">
-                  見つからない場合は「手動登録」タブからカスタム書籍を登録できます
+                <p className="text-[13px] text-stone-400 mt-1">
+                  「手動登録」タブからカスタム書籍を登録できます
                 </p>
               </div>
             )}
@@ -286,7 +342,7 @@ export default function BooksAddPage() {
                 <div className="flex gap-3 overflow-x-auto pb-2">
                   {scannedBooks.map((book, i) => (
                     <div key={i} className="flex-shrink-0 w-16">
-                      <div className="aspect-[2/3] bg-muted rounded overflow-hidden">
+                      <div className="aspect-[2/3] bg-stone-100 rounded overflow-hidden">
                         {book.cover_image_url ? (
                           <img
                             src={book.cover_image_url}
@@ -294,7 +350,7 @@ export default function BooksAddPage() {
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-[8px] text-muted-foreground p-0.5 text-center">
+                          <div className="w-full h-full flex items-center justify-center text-[8px] text-stone-400 p-0.5 text-center">
                             {book.title}
                           </div>
                         )}
@@ -327,7 +383,7 @@ export default function BooksAddPage() {
           {selectedBook && (
             <div className="space-y-4">
               <div className="flex gap-3">
-                <div className="w-16 h-24 flex-shrink-0 bg-muted rounded overflow-hidden">
+                <div className="w-16 h-24 flex-shrink-0 bg-stone-100 rounded overflow-hidden">
                   {selectedBook.cover_image_url ? (
                     <img
                       src={selectedBook.cover_image_url}
@@ -335,14 +391,14 @@ export default function BooksAddPage() {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-[8px] text-muted-foreground">
+                    <div className="w-full h-full flex items-center justify-center text-[8px] text-stone-400">
                       No Image
                     </div>
                   )}
                 </div>
                 <div>
                   <p className="font-medium text-sm">{selectedBook.title}</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-stone-400">
                     {selectedBook.authors?.join(", ")}
                   </p>
                 </div>
@@ -363,7 +419,7 @@ export default function BooksAddPage() {
               </div>
 
               {addError && (
-                <p className="text-sm text-destructive">{addError}</p>
+                <p className="text-sm text-red-600">{addError}</p>
               )}
 
               <div className="flex gap-2 justify-end">

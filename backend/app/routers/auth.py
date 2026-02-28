@@ -3,7 +3,7 @@ import uuid
 
 from fastapi import APIRouter, Request, Response
 
-from app.dependencies import DBSession
+from app.dependencies import CurrentUser, DBSession
 from app.schemas.auth import (
     AuthResponse,
     ForgotPasswordRequest,
@@ -65,9 +65,18 @@ def _clear_refresh_cookie(response: Response) -> None:
 @router.post("/register", response_model=AuthResponse)
 async def register(
     body: RegisterRequest,
+    request: Request,
     response: Response,
     db: DBSession,
 ):
+    # Rate limit: 10 requests/min per IP (登録も悪用対策が必要)
+    client_ip = request.client.host if request.client else "unknown"
+    allowed = await check_rate_limit(
+        f"rate_limit:register:{client_ip}", max_requests=10, window_seconds=60
+    )
+    if not allowed:
+        raise RateLimitExceededException()
+
     # Turnstile verification
     if not await verify_turnstile(body.turnstile_token):
         raise ValidationException("Bot verification failed")
@@ -167,22 +176,9 @@ async def refresh(
 
 @router.get("/me", response_model=UserResponse)
 async def get_me(
-    request: Request,
-    db: DBSession,
+    current_user: CurrentUser,
 ):
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        raise UnauthorizedException()
-
-    token = auth_header.split(" ")[1]
-    payload = decode_access_token(token)
-    user_id = uuid.UUID(payload["sub"])
-
-    user = await get_user_by_id(db, user_id)
-    if not user:
-        raise UnauthorizedException("User not found")
-
-    return UserResponse.model_validate(user)
+    return UserResponse.model_validate(current_user)
 
 
 @router.post("/forgot-password", status_code=204)

@@ -50,8 +50,8 @@ def test_book_model_columns():
         "id", "isbn_10", "isbn_13", "title", "subtitle",
         "series_title", "volume_number", "authors", "publisher",
         "published_date", "description", "page_count",
-        "cover_image_path", "cover_image_original_url", "categories",
-        "language", "source", "source_id", "is_custom", "created_by",
+        "cover_image_url", "categories",
+        "language", "source", "is_custom", "created_by",
         "created_at", "updated_at",
     }
     assert expected.issubset(columns)

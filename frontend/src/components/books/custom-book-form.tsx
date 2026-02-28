@@ -64,7 +64,7 @@ export function CustomBookForm({ onSuccess }: CustomBookFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && (
-        <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-md">
+        <div className="p-3 bg-red-50 text-red-700 text-[13px] rounded border border-red-200">
           {error}
         </div>
       )}

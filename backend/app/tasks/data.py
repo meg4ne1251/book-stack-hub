@@ -9,7 +9,7 @@ from datetime import datetime
 from app.tasks.celery_app import celery_app
 
 
-@celery_app.task(bind=True, name="tasks.process_import")
+@celery_app.task(bind=True, name="app.tasks.data.process_import")
 def process_import(self, user_id: str, content: str, filename: str):
     """データインポート処理"""
     self.update_state(
@@ -57,7 +57,7 @@ def process_import(self, user_id: str, content: str, filename: str):
     }
 
 
-@celery_app.task(bind=True, name="tasks.process_export")
+@celery_app.task(bind=True, name="app.tasks.data.process_export")
 def process_export(
     self, user_id: str, format_type: str, include_images: bool = False
 ):

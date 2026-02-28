@@ -51,56 +51,61 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface">
-      <div className="w-full max-w-md p-8 bg-background rounded-lg shadow-md">
-        <h1 className="text-2xl font-bold text-center mb-6">ログイン</h1>
+    <div className="min-h-screen flex items-center justify-center bg-[#faf7f2] px-4">
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-6">
+          <h1 className="font-serif text-xl font-bold text-stone-800">ログイン</h1>
+          <p className="text-[13px] text-stone-400 mt-1">BookStackHub</p>
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="email">メールアドレス</Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-            />
-          </div>
+        <div className="p-5 bg-white rounded border border-stone-200 shadow-sm">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="email">メールアドレス</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+              />
+            </div>
 
-          <div>
-            <Label htmlFor="password">パスワード</Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              autoComplete="current-password"
-            />
-          </div>
+            <div>
+              <Label htmlFor="password">パスワード</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+              />
+            </div>
 
-          {error && (
-            <p className="text-sm text-destructive">{error}</p>
-          )}
+            {error && (
+              <p className="text-sm text-red-600">{error}</p>
+            )}
 
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "ログイン中..." : "ログイン"}
-          </Button>
-        </form>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "ログイン中..." : "ログイン"}
+            </Button>
+          </form>
+        </div>
 
-        <div className="mt-4 text-center text-sm text-muted-foreground">
+        <div className="mt-4 text-center text-[13px] text-stone-400">
           <Link
             href="/forgot-password"
-            className="text-primary hover:underline"
+            className="text-stone-500 hover:text-stone-700"
           >
             パスワードをお忘れですか？
           </Link>
         </div>
 
-        <div className="mt-2 text-center text-sm text-muted-foreground">
+        <div className="mt-2 text-center text-[13px] text-stone-400">
           アカウントをお持ちでない方は{" "}
-          <Link href="/register" className="text-primary hover:underline">
+          <Link href="/register" className="text-amber-800 hover:underline">
             新規登録
           </Link>
         </div>

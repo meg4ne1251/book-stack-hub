@@ -39,12 +39,12 @@ export default function StatsPage() {
       try {
         const [statsRes, heatmapRes] = await Promise.all([
           apiClient.get<StatsOverview>("/me/stats/overview"),
-          apiClient.get<HeatmapData>(
+          apiClient.get<{ data: HeatmapData }>(
             `/me/reading-logs/heatmap?year=${selectedYear}`
           ),
         ]);
         setStats(statsRes);
-        setHeatmapData(heatmapRes);
+        setHeatmapData(heatmapRes.data);
       } catch {
         // Stats API may not be implemented yet, use placeholder
         setStats(null);
@@ -71,11 +71,11 @@ export default function StatsPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6 animate-pulse">
-        <div className="h-8 bg-muted rounded w-32" />
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="space-y-5 animate-pulse">
+        <div className="h-7 bg-stone-100 rounded w-32" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-24 bg-muted rounded-lg" />
+            <div key={i} className="h-20 bg-stone-100 rounded" />
           ))}
         </div>
       </div>
@@ -83,14 +83,14 @@ export default function StatsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">統計・レポート</h1>
+        <h1 className="font-serif text-xl font-bold text-stone-800">統計</h1>
         <div className="flex items-center gap-2">
           <select
             value={selectedYear}
             onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+            className="h-8 rounded border border-stone-300 bg-white px-2 text-[13px] text-stone-600"
           >
             {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(
               (year) => (
@@ -104,40 +104,40 @@ export default function StatsPage() {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-card border border-border rounded-lg p-4">
-          <p className="text-sm text-muted-foreground">今月の読了</p>
-          <p className="text-3xl font-bold mt-1">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="bg-white border border-stone-200 rounded p-3">
+          <p className="text-[13px] text-stone-500">今月の読了</p>
+          <p className="text-2xl font-bold text-stone-800 mt-0.5">
             {stats?.books_this_month ?? "-"}
           </p>
-          <p className="text-xs text-muted-foreground">冊</p>
+          <p className="text-xs text-stone-400">冊</p>
         </div>
-        <div className="bg-card border border-border rounded-lg p-4">
-          <p className="text-sm text-muted-foreground">今年の読了</p>
-          <p className="text-3xl font-bold mt-1">
+        <div className="bg-white border border-stone-200 rounded p-3">
+          <p className="text-[13px] text-stone-500">今年の読了</p>
+          <p className="text-2xl font-bold text-stone-800 mt-0.5">
             {stats?.books_this_year ?? "-"}
           </p>
-          <p className="text-xs text-muted-foreground">冊</p>
+          <p className="text-xs text-stone-400">冊</p>
         </div>
-        <div className="bg-card border border-border rounded-lg p-4">
-          <p className="text-sm text-muted-foreground">総ページ数</p>
-          <p className="text-3xl font-bold mt-1">
+        <div className="bg-white border border-stone-200 rounded p-3">
+          <p className="text-[13px] text-stone-500">総ページ数</p>
+          <p className="text-2xl font-bold text-stone-800 mt-0.5">
             {stats?.total_pages_this_year?.toLocaleString() ?? "-"}
           </p>
-          <p className="text-xs text-muted-foreground">ページ（今年）</p>
+          <p className="text-xs text-stone-400">ページ（今年）</p>
         </div>
-        <div className="bg-card border border-border rounded-lg p-4">
-          <p className="text-sm text-muted-foreground">総蔵書数</p>
-          <p className="text-3xl font-bold mt-1">
+        <div className="bg-white border border-stone-200 rounded p-3">
+          <p className="text-[13px] text-stone-500">総蔵書数</p>
+          <p className="text-2xl font-bold text-stone-800 mt-0.5">
             {stats?.total_books ?? "-"}
           </p>
-          <p className="text-xs text-muted-foreground">冊</p>
+          <p className="text-xs text-stone-400">冊</p>
         </div>
       </div>
 
       {/* Heatmap */}
-      <section className="bg-card border border-border rounded-lg p-4">
-        <h2 className="text-sm font-medium mb-3">
+      <section className="bg-white border border-stone-200 rounded p-4">
+        <h2 className="text-[13px] font-medium text-stone-500 mb-3">
           読書ヒートマップ ({selectedYear}年)
         </h2>
         <ReadingHeatmap data={heatmapData} year={selectedYear} />
@@ -145,13 +145,13 @@ export default function StatsPage() {
 
       {/* Status distribution */}
       {stats?.status_counts && (
-        <section className="bg-card border border-border rounded-lg p-4">
-          <h2 className="text-sm font-medium mb-3">ステータス別冊数</h2>
+        <section className="bg-white border border-stone-200 rounded p-4">
+          <h2 className="text-[13px] font-medium text-stone-500 mb-3">ステータス別冊数</h2>
           <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
             {Object.entries(stats.status_counts).map(([status, count]) => (
               <div key={status} className="text-center">
-                <p className="text-2xl font-bold">{count}</p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xl font-bold text-stone-800">{count}</p>
+                <p className="text-xs text-stone-400">
                   {STATUS_LABELS[status] || status}
                 </p>
               </div>
@@ -162,8 +162,8 @@ export default function StatsPage() {
 
       {/* Monthly finished books chart */}
       {stats?.monthly_finished && stats.monthly_finished.length > 0 && (
-        <section className="bg-card border border-border rounded-lg p-4">
-          <h2 className="text-sm font-medium mb-3">月別読了冊数</h2>
+        <section className="bg-white border border-stone-200 rounded p-4">
+          <h2 className="text-[13px] font-medium text-stone-500 mb-3">月別読了冊数</h2>
           <div className="flex items-end gap-1 h-40">
             {stats.monthly_finished.map((item) => {
               const maxCount = Math.max(
@@ -176,14 +176,14 @@ export default function StatsPage() {
                   key={item.month}
                   className="flex-1 flex flex-col items-center gap-1"
                 >
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs text-stone-400">
                     {item.count > 0 ? item.count : ""}
                   </span>
                   <div
-                    className="w-full bg-primary rounded-t-sm min-h-[2px]"
+                    className="w-full bg-amber-700 rounded-t-sm min-h-[2px]"
                     style={{ height: `${Math.max(height, 2)}%` }}
                   />
-                  <span className="text-[10px] text-muted-foreground">
+                  <span className="text-[10px] text-stone-400">
                     {item.month.replace(/^\d{4}-/, "")}
                   </span>
                 </div>
@@ -195,8 +195,8 @@ export default function StatsPage() {
 
       {/* Genre distribution */}
       {stats?.genre_distribution && stats.genre_distribution.length > 0 && (
-        <section className="bg-card border border-border rounded-lg p-4">
-          <h2 className="text-sm font-medium mb-3">ジャンル分布</h2>
+        <section className="bg-white border border-stone-200 rounded p-4">
+          <h2 className="text-[13px] font-medium text-stone-500 mb-3">ジャンル分布</h2>
           <div className="space-y-2">
             {stats.genre_distribution.slice(0, 10).map((item) => {
               const maxCount = Math.max(
@@ -209,13 +209,13 @@ export default function StatsPage() {
                   <span className="text-xs w-24 text-right truncate">
                     {item.genre}
                   </span>
-                  <div className="flex-1 h-5 bg-muted rounded overflow-hidden">
+                    <div className="flex-1 h-4 bg-stone-100 rounded overflow-hidden">
                     <div
-                      className="h-full bg-primary rounded"
+                      className="h-full bg-amber-700 rounded"
                       style={{ width: `${width}%` }}
                     />
                   </div>
-                  <span className="text-xs text-muted-foreground w-8">
+                  <span className="text-xs text-stone-400 w-8">
                     {item.count}
                   </span>
                 </div>
@@ -226,9 +226,9 @@ export default function StatsPage() {
       )}
 
       {/* Yearly report */}
-      <section className="bg-card border border-border rounded-lg p-4">
-        <h2 className="text-sm font-medium mb-3">年間読書レポート</h2>
-        <p className="text-sm text-muted-foreground mb-4">
+      <section className="bg-white border border-stone-200 rounded p-4">
+        <h2 className="text-[13px] font-medium text-stone-500 mb-3">年間読書レポート</h2>
+        <p className="text-[13px] text-stone-400 mb-3">
           {selectedYear}年の読書活動をまとめたSNS共有用画像を生成できます
         </p>
         <Button

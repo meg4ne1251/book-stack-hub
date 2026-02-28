@@ -3,11 +3,17 @@
 import uuid
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, UploadFile, File
-from sqlalchemy import select
+from fastapi import APIRouter, Query, UploadFile, File
+from pydantic import BaseModel, Field
+from sqlalchemy import func, select
+from sqlalchemy.orm import selectinload
 
 from app.dependencies import CurrentUser, DBSession
+from app.models.book import Book
 from app.models.user import User
+from app.models.user_book import UserBook
+from app.routers.books import _book_to_response
+from app.schemas.auth import ChangePasswordRequest
 from app.services.auth_service import hash_password, verify_password
 from app.services.image_service import convert_and_save_avatar
 from app.utils.exceptions import (
@@ -15,8 +21,16 @@ from app.utils.exceptions import (
     NotFoundException,
     ValidationException,
 )
+from app.utils.response import paginated_response
 
 router = APIRouter(prefix="/users", tags=["users"])
+
+
+class ProfileUpdate(BaseModel):
+    display_name: str | None = Field(default=None, max_length=50)
+    bio: str | None = Field(default=None, max_length=500)
+    locale: str | None = Field(default=None, max_length=5)
+    is_profile_public: bool | None = None
 
 
 @router.get("/{user_id}")
@@ -60,10 +74,68 @@ async def get_user_profile(
     return data
 
 
+@router.get("/{user_id}/books")
+async def get_user_public_books(
+    user_id: str,
+    current_user: CurrentUser,
+    db: DBSession,
+    page: int = Query(default=1, ge=1),
+    per_page: int = Query(default=20, ge=1, le=50),
+):
+    """ユーザーの公開本棚を取得"""
+    # Resolve user by UUID or username
+    try:
+        parsed_id = uuid.UUID(user_id)
+        result = await db.execute(select(User).where(User.id == parsed_id))
+    except ValueError:
+        result = await db.execute(select(User).where(User.username == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise NotFoundException("User not found")
+
+    is_self = user.id == current_user.id
+    if not is_self and not user.is_profile_public:
+        return paginated_response([], page, per_page, 0)
+
+    base_q = (
+        select(UserBook)
+        .where(UserBook.user_id == user.id)
+        .options(selectinload(UserBook.book), selectinload(UserBook.tags))
+        .order_by(UserBook.created_at.desc())
+    )
+    count_q = select(func.count(UserBook.id)).where(UserBook.user_id == user.id)
+
+    total_result = await db.execute(count_q)
+    total = total_result.scalar() or 0
+
+    offset = (page - 1) * per_page
+    result = await db.execute(base_q.offset(offset).limit(per_page))
+    user_books = list(result.scalars().all())
+
+    data = [
+        {
+            "id": str(ub.id),
+            "book": _book_to_response(ub.book),
+            "status": ub.status,
+            "rating": ub.rating,
+            # private_memo は非公開情報のため他ユーザーには返さない
+            **({
+                "private_memo": ub.private_memo,
+                "purchase_price": ub.purchase_price,
+            } if is_self else {}),
+            "is_owned": ub.is_owned,
+            "tags": [{"id": str(t.id), "name": t.name} for t in ub.tags],
+            "created_at": str(ub.created_at),
+        }
+        for ub in user_books
+    ]
+    return paginated_response(data, page, per_page, total)
+
+
 @router.patch("/{user_id}")
 async def update_user_profile(
     user_id: str,
-    body: dict,
+    body: ProfileUpdate,
     current_user: CurrentUser,
     db: DBSession,
 ):
@@ -71,13 +143,9 @@ async def update_user_profile(
     if str(current_user.id) != user_id:
         raise ForbiddenException("You can only update your own profile")
 
-    allowed_fields = {"display_name", "bio", "locale", "is_profile_public"}
-    for key, value in body.items():
-        if key in allowed_fields:
-            setattr(current_user, key, value)
-
-    await db.commit()
-    await db.refresh(current_user)
+    update_data = body.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(current_user, key, value)
 
     return {
         "id": str(current_user.id),
@@ -113,7 +181,6 @@ async def deactivate_user(
 
     user.is_active = False
     user.deactivated_at = datetime.now(UTC)
-    await db.commit()
 
     return {"message": "Account deactivated"}
 
@@ -121,7 +188,7 @@ async def deactivate_user(
 @router.patch("/{user_id}/password")
 async def change_password(
     user_id: str,
-    body: dict,
+    body: ChangePasswordRequest,
     current_user: CurrentUser,
     db: DBSession,
 ):
@@ -129,20 +196,10 @@ async def change_password(
     if str(current_user.id) != user_id:
         raise ForbiddenException("You can only change your own password")
 
-    current_password = body.get("current_password")
-    new_password = body.get("new_password")
-
-    if not current_password or not new_password:
-        raise ValidationException("Current and new password are required")
-
-    if not verify_password(current_password, current_user.password_hash):
+    if not verify_password(body.current_password, current_user.password_hash):
         raise ValidationException("Current password is incorrect")
 
-    if len(new_password) < 8:
-        raise ValidationException("New password must be at least 8 characters")
-
-    current_user.password_hash = hash_password(new_password)
-    await db.commit()
+    current_user.password_hash = hash_password(body.new_password)
 
     return {"message": "Password changed successfully"}
 
@@ -168,11 +225,18 @@ async def upload_avatar(
     if len(content) > 5 * 1024 * 1024:
         raise ValidationException("File too large. Maximum 5MB.")
 
+    # マジックバイト検証（Content-Type偽装対策）
+    from app.services.image_service import validate_image_magic_bytes
+    if not validate_image_magic_bytes(content):
+        raise ValidationException("Invalid image file. File header does not match expected format.")
+
     # Process and save avatar
-    convert_and_save_avatar(content, str(current_user.id))
+    filename = convert_and_save_avatar(content, str(current_user.id))
+    if not filename:
+        raise ValidationException("Failed to process avatar image")
 
-    current_user.avatar_url = f"/api/v1/images/avatars/{current_user.id}.webp"
-    await db.commit()
-    await db.refresh(current_user)
+    current_user.avatar_url = filename
 
-    return {"avatar_url": current_user.avatar_url}
+    from app.services.image_service import generate_signed_url
+    signed_url = generate_signed_url(filename).replace("/api/v1/images/", "/api/v1/avatars/")
+    return {"avatar_url": signed_url}

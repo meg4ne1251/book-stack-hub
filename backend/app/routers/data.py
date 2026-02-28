@@ -1,11 +1,20 @@
 """データインポート・エクスポート API"""
 
+import os
+from typing import Literal
+
 from fastapi import APIRouter, UploadFile, File
+from pydantic import BaseModel
 
 from app.dependencies import CurrentUser, DBSession
-from app.utils.exceptions import ValidationException
+from app.utils.exceptions import ForbiddenException, NotFoundException, ValidationException
 
 router = APIRouter(prefix="/me", tags=["data"])
+
+
+class ExportRequest(BaseModel):
+    format: Literal["csv", "json"] = "csv"
+    include_images: bool = False
 
 
 @router.post("/import")
@@ -32,12 +41,17 @@ async def import_data(
     if len(content) > 10 * 1024 * 1024:  # 10MB limit
         raise ValidationException("File too large. Maximum 10MB.")
 
+    try:
+        decoded_content = content.decode("utf-8")
+    except UnicodeDecodeError:
+        raise ValidationException("File encoding is not UTF-8. Please save the file as UTF-8.")
+
     # Queue import task
     from app.tasks.data import process_import
 
     task = process_import.delay(
         str(current_user.id),
-        content.decode("utf-8"),
+        decoded_content,
         filename,
     )
 
@@ -49,23 +63,17 @@ async def import_data(
 
 @router.post("/export")
 async def export_data(
-    body: dict,
+    body: ExportRequest,
     current_user: CurrentUser,
     db: DBSession,
 ):
     """データエクスポートリクエスト（Celeryタスク）"""
-    format_type = body.get("format", "csv")
-    if format_type not in ("csv", "json"):
-        raise ValidationException("Unsupported format. Use 'csv' or 'json'.")
-
-    include_images = body.get("include_images", False)
-
     from app.tasks.data import process_export
 
     task = process_export.delay(
         str(current_user.id),
-        format_type,
-        include_images,
+        body.format,
+        body.include_images,
     )
 
     return {
@@ -80,10 +88,10 @@ async def download_export(
     current_user: CurrentUser,
 ):
     """エクスポートファイルダウンロード"""
-    from app.tasks.data import process_export
     from celery.result import AsyncResult
+    from app.tasks.celery_app import celery_app
 
-    result = AsyncResult(task_id)
+    result = AsyncResult(task_id, app=celery_app)
 
     if result.state == "PENDING":
         return {"status": "pending", "progress": 0, "total": 0, "errors": []}
@@ -97,12 +105,20 @@ async def download_export(
         }
     elif result.state == "SUCCESS":
         file_path = result.result
+        if not file_path or not os.path.isfile(file_path):
+            raise NotFoundException("Export file not found")
+
+        # セキュリティ: ファイルがリクエストユーザーのものか検証（パストラバーサル防止）
+        base_name = os.path.basename(file_path)
+        if not base_name.startswith(str(current_user.id)):
+            raise ForbiddenException("Not authorized to download this export")
+
         from fastapi.responses import FileResponse
 
         return FileResponse(
             file_path,
             media_type="application/octet-stream",
-            filename=file_path.split("/")[-1],
+            filename=os.path.basename(file_path),
         )
     else:
         return {"status": "failed", "progress": 0, "total": 0, "errors": [str(result.result)]}

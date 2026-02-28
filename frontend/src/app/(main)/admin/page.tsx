@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuthStore } from "@/stores/authStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,16 +40,7 @@ export default function AdminPage() {
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [playlistsLoading, setPlaylistsLoading] = useState(false);
 
-  // Check admin access
-  if (user?.role !== "admin") {
-    return (
-      <div className="text-center py-12">
-        <p className="text-destructive">管理者権限が必要です</p>
-      </div>
-    );
-  }
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     setUsersLoading(true);
     try {
       const params = new URLSearchParams({
@@ -67,18 +58,18 @@ export default function AdminPage() {
     } finally {
       setUsersLoading(false);
     }
-  };
+  }, [usersPage, userSearch]);
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       const res = await apiClient.get<AdminStats>("/admin/stats");
       setStats(res);
     } catch {
       // Error handling
     }
-  };
+  }, []);
 
-  const fetchReviews = async () => {
+  const fetchReviews = useCallback(async () => {
     setReviewsLoading(true);
     try {
       const res = await apiClient.get<PaginatedResponse<Review>>(
@@ -90,9 +81,9 @@ export default function AdminPage() {
     } finally {
       setReviewsLoading(false);
     }
-  };
+  }, []);
 
-  const fetchPlaylists = async () => {
+  const fetchPlaylists = useCallback(async () => {
     setPlaylistsLoading(true);
     try {
       const res = await apiClient.get<PaginatedResponse<Playlist>>(
@@ -104,21 +95,22 @@ export default function AdminPage() {
     } finally {
       setPlaylistsLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchStats();
-    fetchUsers();
   }, []);
 
+  // 初回マウント時に統計を取得
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
+  // usersPage / userSearch が変わるたびに再取得（初回マウント含む）
   useEffect(() => {
     fetchUsers();
-  }, [usersPage]);
+  }, [fetchUsers]);
 
   useEffect(() => {
     if (activeTab === "reviews") fetchReviews();
     if (activeTab === "playlists") fetchPlaylists();
-  }, [activeTab]);
+  }, [activeTab, fetchReviews, fetchPlaylists]);
 
   const handleToggleUserActive = async (userId: string, isActive: boolean) => {
     try {
@@ -180,36 +172,45 @@ export default function AdminPage() {
     }
   };
 
+  // Check admin access (after all hooks)
+  if (user?.role !== "admin") {
+    return (
+      <div className="text-center py-10">
+        <p className="text-red-600 text-sm">管理者権限が必要です</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">管理者ダッシュボード</h1>
+      <h1 className="font-serif text-xl font-bold text-stone-800">管理者ダッシュボード</h1>
 
       {/* Stats */}
       {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          <div className="bg-card border border-border rounded-lg p-3 text-center">
-            <p className="text-2xl font-bold">{stats.total_users}</p>
-            <p className="text-xs text-muted-foreground">総ユーザー</p>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="bg-white border border-stone-200 rounded p-3 text-center">
+            <p className="text-xl font-bold">{stats.total_users}</p>
+            <p className="text-xs text-stone-400">総ユーザー</p>
           </div>
-          <div className="bg-card border border-border rounded-lg p-3 text-center">
-            <p className="text-2xl font-bold">{stats.active_users_30d}</p>
-            <p className="text-xs text-muted-foreground">アクティブ(30日)</p>
+          <div className="bg-white border border-stone-200 rounded p-3 text-center">
+            <p className="text-xl font-bold">{stats.active_users_30d}</p>
+            <p className="text-xs text-stone-400">アクティブ(30日)</p>
           </div>
-          <div className="bg-card border border-border rounded-lg p-3 text-center">
-            <p className="text-2xl font-bold">{stats.total_books}</p>
-            <p className="text-xs text-muted-foreground">総書籍</p>
+          <div className="bg-white border border-stone-200 rounded p-3 text-center">
+            <p className="text-xl font-bold">{stats.total_books}</p>
+            <p className="text-xs text-stone-400">総書籍</p>
           </div>
-          <div className="bg-card border border-border rounded-lg p-3 text-center">
-            <p className="text-2xl font-bold">{stats.total_custom_books}</p>
-            <p className="text-xs text-muted-foreground">カスタム書籍</p>
+          <div className="bg-white border border-stone-200 rounded p-3 text-center">
+            <p className="text-xl font-bold">{stats.total_custom_books}</p>
+            <p className="text-xs text-stone-400">カスタム書籍</p>
           </div>
-          <div className="bg-card border border-border rounded-lg p-3 text-center">
-            <p className="text-2xl font-bold">{stats.total_reviews}</p>
-            <p className="text-xs text-muted-foreground">総レビュー</p>
+          <div className="bg-white border border-stone-200 rounded p-3 text-center">
+            <p className="text-xl font-bold">{stats.total_reviews}</p>
+            <p className="text-xs text-stone-400">総レビュー</p>
           </div>
-          <div className="bg-card border border-border rounded-lg p-3 text-center">
-            <p className="text-2xl font-bold">{stats.total_playlists}</p>
-            <p className="text-xs text-muted-foreground">総プレイリスト</p>
+          <div className="bg-white border border-stone-200 rounded p-3 text-center">
+            <p className="text-xl font-bold">{stats.total_playlists}</p>
+            <p className="text-xs text-stone-400">総プレイリスト</p>
           </div>
         </div>
       )}
@@ -242,42 +243,41 @@ export default function AdminPage() {
               <Button type="submit">検索</Button>
             </form>
 
-            <div className="border border-border rounded-lg overflow-hidden">
+            <div className="border border-stone-200 rounded overflow-hidden">
               <table className="w-full text-sm">
-                <thead className="bg-muted">
+                <thead className="bg-stone-50">
                   <tr>
-                    <th className="px-4 py-3 text-left">ユーザー</th>
-                    <th className="px-4 py-3 text-left">メール</th>
-                    <th className="px-4 py-3 text-left">ロール</th>
-                    <th className="px-4 py-3 text-left">状態</th>
-                    <th className="px-4 py-3 text-left">操作</th>
+                    <th className="px-4 py-2.5 text-left text-[13px] text-stone-500">ユーザー</th>
+                    <th className="px-4 py-2.5 text-left text-[13px] text-stone-500">メール</th>
+                    <th className="px-4 py-2.5 text-left text-[13px] text-stone-500">ロール</th>
+                    <th className="px-4 py-2.5 text-left text-[13px] text-stone-500">状態</th>
+                    <th className="px-4 py-2.5 text-left text-[13px] text-stone-500">操作</th>
                   </tr>
                 </thead>
                 <tbody>
                   {usersLoading ? (
                     <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                      <td colSpan={5} className="px-4 py-6 text-center text-stone-400 text-sm">
                         読み込み中...
                       </td>
                     </tr>
                   ) : users.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                      <td colSpan={5} className="px-4 py-6 text-center text-stone-400 text-sm">
                         ユーザーが見つかりません
                       </td>
                     </tr>
                   ) : (
                     users.map((u) => (
-                      <tr key={u.id} className="border-t border-border">
+                      <tr key={u.id} className="border-t border-stone-100">
                         <td className="px-4 py-3">
                           <div>
                             <p className="font-medium">{u.display_name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              @{u.username}
+                            <p className="text-xs text-stone-400">
                             </p>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-muted-foreground">
+                        <td className="px-4 py-3 text-stone-500">
                           {u.email}
                         </td>
                         <td className="px-4 py-3">
@@ -355,28 +355,28 @@ export default function AdminPage() {
         <TabsContent value="reviews">
           <div className="space-y-3">
             {reviewsLoading ? (
-              <p className="text-muted-foreground">読み込み中...</p>
+              <p className="text-stone-400 text-sm">読み込み中...</p>
             ) : reviews.length === 0 ? (
-              <p className="text-muted-foreground">公開レビューがありません</p>
+              <p className="text-stone-400 text-sm">公開レビューがありません</p>
             ) : (
               reviews.map((review) => (
                 <div
                   key={review.id}
-                  className="flex items-start gap-4 p-4 border border-border rounded-lg"
+                  className="flex items-start gap-4 p-3 border border-stone-200 rounded"
                 >
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-medium">{review.title}</h3>
-                    <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
+                    <h3 className="font-medium text-sm text-stone-800">{review.title}</h3>
+                    <p className="text-sm text-stone-500 line-clamp-2 mt-1">
                       {review.body}
                     </p>
-                    <p className="text-xs text-muted-foreground mt-1">
+                    <p className="text-xs text-stone-400 mt-1">
                       {new Date(review.created_at).toLocaleDateString("ja-JP")}
                     </p>
                   </div>
                   <Button
                     size="sm"
                     variant="outline"
-                    className="text-destructive"
+                    className="text-red-600"
                     onClick={() => handleHideReview(review.id)}
                   >
                     非公開化
@@ -391,32 +391,32 @@ export default function AdminPage() {
         <TabsContent value="playlists">
           <div className="space-y-3">
             {playlistsLoading ? (
-              <p className="text-muted-foreground">読み込み中...</p>
+              <p className="text-stone-400 text-sm">読み込み中...</p>
             ) : playlists.length === 0 ? (
-              <p className="text-muted-foreground">
+              <p className="text-stone-400 text-sm">
                 公開プレイリストがありません
               </p>
             ) : (
               playlists.map((pl) => (
                 <div
                   key={pl.id}
-                  className="flex items-start gap-4 p-4 border border-border rounded-lg"
+                  className="flex items-start gap-4 p-3 border border-stone-200 rounded"
                 >
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-medium">{pl.title}</h3>
+                    <h3 className="font-medium text-sm text-stone-800">{pl.title}</h3>
                     {pl.description && (
-                      <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
+                      <p className="text-sm text-stone-500 line-clamp-2 mt-1">
                         {pl.description}
                       </p>
                     )}
-                    <p className="text-xs text-muted-foreground mt-1">
+                    <p className="text-xs text-stone-400 mt-1">
                       {pl.items?.length || 0}冊
                     </p>
                   </div>
                   <Button
                     size="sm"
                     variant="outline"
-                    className="text-destructive"
+                    className="text-red-600"
                     onClick={() => handleHidePlaylist(pl.id)}
                   >
                     非公開化
@@ -430,9 +430,9 @@ export default function AdminPage() {
         {/* System Tab */}
         <TabsContent value="system">
           <div className="space-y-4">
-            <div className="bg-card border border-border rounded-lg p-4 space-y-3">
-              <h3 className="font-medium">書籍情報更新バッチ</h3>
-              <p className="text-sm text-muted-foreground">
+            <div className="bg-white border border-stone-200 rounded p-4 space-y-2">
+              <h3 className="font-medium text-sm text-stone-800">書籍情報更新バッチ</h3>
+              <p className="text-sm text-stone-500">
                 半年以上更新されていない書籍の情報を外部APIから再取得します
               </p>
               <Button variant="outline" onClick={handleRefreshBooks}>

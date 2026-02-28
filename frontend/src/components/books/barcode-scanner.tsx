@@ -94,24 +94,24 @@ export function BarcodeScanner({
     <div className="space-y-4">
       <div className="relative">
         {isStarting && (
-          <div className="absolute inset-0 flex items-center justify-center bg-muted rounded-lg z-10">
-            <p className="text-sm text-muted-foreground">カメラを起動中...</p>
+          <div className="absolute inset-0 flex items-center justify-center bg-stone-100 rounded z-10">
+            <p className="text-sm text-stone-400">カメラを起動中...</p>
           </div>
         )}
         <div
           id="barcode-scanner-container"
           ref={scannerRef}
-          className="w-full rounded-lg overflow-hidden"
+          className="w-full rounded overflow-hidden"
           style={{ minHeight: 300 }}
         />
       </div>
 
       {error && (
-        <p className="text-sm text-destructive">{error}</p>
+        <p className="text-sm text-red-600">{error}</p>
       )}
 
       <div className="flex justify-between items-center">
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-stone-400">
           {continuousMode
             ? "連続スキャンモード: バーコードを検出すると自動で登録します"
             : "書籍のバーコード（ISBN）をカメラに映してください"}

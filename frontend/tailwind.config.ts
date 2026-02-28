@@ -11,28 +11,28 @@ const config: Config = {
     extend: {
       colors: {
         primary: {
-          DEFAULT: "#2563EB",
-          dark: "#1D4ED8",
-          light: "#DBEAFE",
+          DEFAULT: "#92400e",
+          dark: "#78350f",
+          light: "#fef3c7",
           foreground: "#FFFFFF",
         },
         secondary: {
-          DEFAULT: "#059669",
+          DEFAULT: "#166534",
           foreground: "#FFFFFF",
         },
         destructive: {
-          DEFAULT: "#DC2626",
+          DEFAULT: "#b91c1c",
           foreground: "#FFFFFF",
         },
         warning: {
-          DEFAULT: "#D97706",
+          DEFAULT: "#b45309",
           foreground: "#FFFFFF",
         },
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         surface: {
-          DEFAULT: "#F8FAFC",
-          dark: "#1E293B",
+          DEFAULT: "#faf7f2",
+          dark: "#1c1917",
         },
         muted: {
           DEFAULT: "hsl(var(--muted))",
@@ -55,19 +55,20 @@ const config: Config = {
         ring: "hsl(var(--ring))",
       },
       borderRadius: {
-        sm: "6px",
-        md: "8px",
-        lg: "12px",
+        sm: "4px",
+        md: "6px",
+        lg: "8px",
         full: "9999px",
       },
       boxShadow: {
-        sm: "0 1px 2px rgba(0,0,0,0.05)",
-        md: "0 4px 6px rgba(0,0,0,0.07)",
-        lg: "0 10px 15px rgba(0,0,0,0.1)",
+        sm: "0 1px 2px rgba(0,0,0,0.04)",
+        md: "0 2px 8px rgba(0,0,0,0.06)",
+        lg: "0 4px 16px rgba(0,0,0,0.08)",
       },
       fontFamily: {
-        sans: ["Inter", "Noto Sans JP", "system-ui", "sans-serif"],
-        mono: ["JetBrains Mono", "monospace"],
+        sans: ['"Noto Sans JP"', "system-ui", "sans-serif"],
+        serif: ['"Noto Serif JP"', "Georgia", "serif"],
+        mono: ['"Source Code Pro"', "monospace"],
       },
     },
   },

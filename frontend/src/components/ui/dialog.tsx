@@ -32,7 +32,7 @@ export function DialogContent({
   return (
     <div
       className={cn(
-        "relative z-50 w-full max-w-lg rounded-lg bg-background p-6 shadow-lg border border-border",
+        "relative z-50 w-full max-w-lg rounded-md bg-white p-5 shadow-lg border border-stone-200",
         className
       )}
       onClick={(e) => e.stopPropagation()}

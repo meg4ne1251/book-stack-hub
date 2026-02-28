@@ -40,7 +40,7 @@ export default function SettingsPage() {
   useEffect(() => {
     if (user) {
       setDisplayName(user.display_name);
-      setBio("");
+      setBio(user.bio || "");
       setLocale(user.locale);
       setIsProfilePublic(user.is_profile_public);
     }
@@ -176,16 +176,16 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8">
-      <h1 className="text-2xl font-bold">設定</h1>
+    <div className="max-w-xl space-y-6">
+      <h1 className="font-serif text-xl font-bold text-stone-800">設定</h1>
 
       {/* Profile Section */}
-      <section className="bg-card border border-border rounded-lg p-6 space-y-4">
-        <h2 className="text-lg font-semibold">プロフィール</h2>
+      <section className="bg-white border border-stone-200 rounded p-5 space-y-4">
+        <h2 className="text-sm font-semibold text-stone-700">プロフィール</h2>
 
         {/* Avatar */}
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-muted overflow-hidden">
+          <div className="w-14 h-14 rounded-full bg-stone-100 overflow-hidden">
             {user?.avatar_url ? (
               <img
                 src={user.avatar_url}
@@ -193,7 +193,7 @@ export default function SettingsPage() {
                 className="w-full h-full object-cover"
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-lg font-bold text-muted-foreground">
+              <div className="w-full h-full flex items-center justify-center text-base font-bold text-stone-400">
                 {user?.display_name?.[0] || "?"}
               </div>
             )}
@@ -265,7 +265,7 @@ export default function SettingsPage() {
           <p className="text-sm text-green-600">{profileMessage}</p>
         )}
         {profileError && (
-          <p className="text-sm text-destructive">{profileError}</p>
+          <p className="text-sm text-red-600">{profileError}</p>
         )}
 
         <Button onClick={handleSaveProfile} disabled={savingProfile}>
@@ -274,8 +274,8 @@ export default function SettingsPage() {
       </section>
 
       {/* Password Section */}
-      <section className="bg-card border border-border rounded-lg p-6 space-y-4">
-        <h2 className="text-lg font-semibold">パスワード変更</h2>
+      <section className="bg-white border border-stone-200 rounded p-5 space-y-4">
+        <h2 className="text-sm font-semibold text-stone-700">パスワード変更</h2>
 
         <div className="space-y-2">
           <Label htmlFor="currentPassword">現在のパスワード</Label>
@@ -312,7 +312,7 @@ export default function SettingsPage() {
           <p className="text-sm text-green-600">{passwordMessage}</p>
         )}
         {passwordError && (
-          <p className="text-sm text-destructive">{passwordError}</p>
+          <p className="text-sm text-red-600">{passwordError}</p>
         )}
 
         <Button
@@ -324,13 +324,13 @@ export default function SettingsPage() {
       </section>
 
       {/* Data Management Section */}
-      <section className="bg-card border border-border rounded-lg p-6 space-y-4">
-        <h2 className="text-lg font-semibold">データ管理</h2>
+      <section className="bg-white border border-stone-200 rounded p-5 space-y-4">
+        <h2 className="text-sm font-semibold text-stone-700">データ管理</h2>
 
         <div className="space-y-3">
           <div>
-            <h3 className="text-sm font-medium">インポート</h3>
-            <p className="text-xs text-muted-foreground mb-2">
+            <h3 className="text-[13px] font-medium text-stone-600">インポート</h3>
+            <p className="text-xs text-stone-400 mb-2">
               CSV/JSONファイルから書籍データをインポート
             </p>
             <Input
@@ -343,8 +343,8 @@ export default function SettingsPage() {
           </div>
 
           <div>
-            <h3 className="text-sm font-medium">エクスポート</h3>
-            <p className="text-xs text-muted-foreground mb-2">
+            <h3 className="text-[13px] font-medium text-stone-600">エクスポート</h3>
+            <p className="text-xs text-stone-400 mb-2">
               書籍データをバックアップ用にエクスポート
             </p>
             <div className="flex gap-2">
@@ -370,12 +370,12 @@ export default function SettingsPage() {
       </section>
 
       {/* Danger Zone */}
-      <section className="bg-card border border-destructive/30 rounded-lg p-6 space-y-4">
-        <h2 className="text-lg font-semibold text-destructive">危険な操作</h2>
-        <p className="text-sm text-muted-foreground">
+      <section className="bg-white border border-red-200 rounded p-5 space-y-4">
+        <h2 className="text-sm font-semibold text-red-700">危険な操作</h2>
+        <p className="text-[13px] text-stone-500">
           アカウントを無効化すると、30日後に全てのデータが完全に削除されます。
         </p>
-        <Button variant="outline" className="text-destructive border-destructive" onClick={handleDeactivate}>
+        <Button variant="outline" className="text-red-600 border-red-300 hover:bg-red-50" onClick={handleDeactivate}>
           アカウントを無効化
         </Button>
       </section>

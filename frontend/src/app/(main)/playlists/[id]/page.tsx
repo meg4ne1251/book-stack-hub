@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -40,11 +41,11 @@ export default function PlaylistDetailPage() {
   const fetchPlaylist = async () => {
     setLoading(true);
     try {
-      const res = await apiClient.get<Playlist>(`/playlists/${playlistId}`);
-      setPlaylist(res);
-      setEditTitle(res.title);
-      setEditDescription(res.description || "");
-      setEditIsPublic(res.is_public);
+      const res = await apiClient.get<{ data: Playlist }>(`/playlists/${playlistId}`);
+      setPlaylist(res.data);
+      setEditTitle(res.data.title);
+      setEditDescription(res.data.description || "");
+      setEditIsPublic(res.data.is_public);
     } catch (err) {
       if (err instanceof ApiRequestError) {
         setError(err.message);
@@ -63,12 +64,12 @@ export default function PlaylistDetailPage() {
   const handleSaveEdit = async () => {
     setSaving(true);
     try {
-      const res = await apiClient.patch<Playlist>(`/playlists/${playlistId}`, {
+      const res = await apiClient.patch<{ data: Playlist }>(`/playlists/${playlistId}`, {
         title: editTitle,
         description: editDescription || null,
         is_public: editIsPublic,
       });
-      setPlaylist(res);
+      setPlaylist(res.data);
       setEditing(false);
     } catch (err) {
       if (err instanceof ApiRequestError) {
@@ -137,12 +138,12 @@ export default function PlaylistDetailPage() {
 
   if (loading) {
     return (
-      <div className="max-w-3xl mx-auto animate-pulse space-y-4">
-        <div className="h-8 bg-muted rounded w-1/2" />
-        <div className="h-4 bg-muted rounded w-3/4" />
+      <div className="max-w-3xl animate-pulse space-y-4">
+        <div className="h-6 bg-stone-100 rounded w-1/2" />
+        <div className="h-4 bg-stone-100 rounded w-3/4" />
         <div className="space-y-3 mt-6">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-20 bg-muted rounded-lg" />
+            <div key={i} className="h-20 bg-stone-100 rounded" />
           ))}
         </div>
       </div>
@@ -151,8 +152,8 @@ export default function PlaylistDetailPage() {
 
   if (error && !playlist) {
     return (
-      <div className="max-w-3xl mx-auto text-center py-12">
-        <p className="text-destructive">{error}</p>
+      <div className="max-w-3xl text-center py-10">
+        <p className="text-red-600 text-sm">{error}</p>
         <Button className="mt-4" variant="outline" onClick={() => router.back()}>
           戻る
         </Button>
@@ -163,13 +164,13 @@ export default function PlaylistDetailPage() {
   if (!playlist) return null;
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-3xl space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold">{playlist.title}</h1>
+          <h1 className="font-serif text-xl font-bold text-stone-800">{playlist.title}</h1>
           {playlist.description && (
-            <p className="text-muted-foreground mt-1">
+            <p className="text-stone-500 text-sm mt-1">
               {playlist.description}
             </p>
           )}
@@ -177,11 +178,11 @@ export default function PlaylistDetailPage() {
             <Badge variant="outline">
               {playlist.is_public ? "公開" : "非公開"}
             </Badge>
-            <span className="text-sm text-muted-foreground">
+            <span className="text-sm text-stone-400">
               {playlist.items?.length || 0}冊
             </span>
             {playlist.share_slug && (
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-stone-400">
                 共有URL: /share/{playlist.share_slug}
               </span>
             )}
@@ -194,8 +195,7 @@ export default function PlaylistDetailPage() {
           <Button
             size="sm"
             variant="outline"
-            className="text-destructive"
-            onClick={handleDelete}
+            className="text-red-600"
           >
             削除
           </Button>
@@ -215,12 +215,12 @@ export default function PlaylistDetailPage() {
             .map((item, index) => (
               <div
                 key={item.id}
-                className="flex items-center gap-4 p-3 border border-border rounded-lg"
+                className="flex items-center gap-4 p-3 border border-stone-200 rounded"
               >
-                <span className="text-sm text-muted-foreground w-6 text-center">
+                <span className="text-sm text-stone-400 w-6 text-center">
                   {index + 1}
                 </span>
-                <div className="w-10 h-14 flex-shrink-0 bg-muted rounded overflow-hidden">
+                <div className="w-10 h-14 flex-shrink-0 bg-stone-100 rounded overflow-hidden">
                   {item.book.cover_image_url ? (
                     <img
                       src={item.book.cover_image_url}
@@ -228,24 +228,24 @@ export default function PlaylistDetailPage() {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="w-full h-full bg-muted" />
+                    <div className="w-full h-full bg-stone-100" />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <a
+                  <Link
                     href={`/books/${item.book.id}`}
-                    className="text-sm font-medium hover:text-primary truncate block"
+                    className="text-sm font-medium hover:text-amber-800 truncate block"
                   >
                     {item.book.title}
-                  </a>
-                  <p className="text-xs text-muted-foreground truncate">
+                  </Link>
+                  <p className="text-xs text-stone-400 truncate">
                     {item.book.authors?.join(", ")}
                   </p>
                 </div>
                 <Button
                   size="sm"
                   variant="outline"
-                  className="text-destructive"
+                  className="text-red-600"
                   onClick={() => handleRemoveItem(item.id)}
                 >
                   削除
@@ -255,7 +255,7 @@ export default function PlaylistDetailPage() {
         </div>
       ) : (
         <div className="text-center py-8">
-          <p className="text-muted-foreground">
+          <p className="text-stone-400 text-sm">
             書籍がまだ追加されていません
           </p>
         </div>
@@ -335,10 +335,10 @@ export default function PlaylistDetailPage() {
               {bookSearchResults.map((book) => (
                 <div
                   key={book.id}
-                  className="flex items-center gap-3 p-2 border border-border rounded hover:bg-accent/30 cursor-pointer"
+                  className="flex items-center gap-3 p-2 border border-stone-200 rounded hover:bg-stone-50 cursor-pointer"
                   onClick={() => handleAddBook(book.id)}
                 >
-                  <div className="w-8 h-12 flex-shrink-0 bg-muted rounded overflow-hidden">
+                  <div className="w-8 h-12 flex-shrink-0 bg-stone-100 rounded overflow-hidden">
                     {book.cover_image_url ? (
                       <img
                         src={book.cover_image_url}
@@ -346,13 +346,12 @@ export default function PlaylistDetailPage() {
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <div className="w-full h-full bg-muted" />
+                      <div className="w-full h-full bg-stone-100" />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{book.title}</p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {book.authors?.join(", ")}
+                    <p className="text-xs text-stone-400 truncate">
                     </p>
                   </div>
                 </div>

@@ -1,12 +1,11 @@
 import uuid
-from datetime import date, datetime
+from datetime import datetime
 
 from sqlalchemy import (
     Boolean,
-    Date,
+    DateTime,
     ForeignKey,
     Integer,
-    SmallInteger,
     String,
     Text,
     UniqueConstraint,
@@ -37,17 +36,17 @@ class UserBook(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         index=True,
     )
     status: Mapped[str] = mapped_column(String(20), nullable=False)
-    rating: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    rating: Mapped[int | None] = mapped_column(Integer, nullable=True)
     private_memo: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_owned: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default="false"
     )
     purchase_price: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    started_reading_at: Mapped[date | None] = mapped_column(
-        Date, nullable=True
+    started_reading_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
     )
-    finished_reading_at: Mapped[date | None] = mapped_column(
-        Date, nullable=True
+    finished_reading_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
     )
 
     # Relationships

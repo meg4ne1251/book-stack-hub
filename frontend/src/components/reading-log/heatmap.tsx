@@ -17,10 +17,10 @@ const MONTH_LABELS = [
 const DAY_LABELS = ["", "月", "", "水", "", "金", ""];
 
 function getColor(count: number): string {
-  if (count === 0) return "var(--heatmap-0, #ebedf0)";
-  if (count === 1) return "var(--heatmap-1, #9be9a8)";
-  if (count <= 3) return "var(--heatmap-2, #40c463)";
-  return "var(--heatmap-3, #216e39)";
+  if (count === 0) return "var(--heatmap-0, #f5f0e8)";
+  if (count === 1) return "var(--heatmap-1, #e8d5b0)";
+  if (count <= 3) return "var(--heatmap-2, #c8944a)";
+  return "var(--heatmap-3, #92400e)";
 }
 
 export function ReadingHeatmap({ data, year }: HeatmapProps) {
@@ -132,7 +132,7 @@ export function ReadingHeatmap({ data, year }: HeatmapProps) {
       </svg>
 
       {/* Legend */}
-      <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
+      <div className="flex items-center gap-1 mt-2 text-xs text-stone-400">
         <span>少</span>
         {[0, 1, 2, 4].map((count) => (
           <div

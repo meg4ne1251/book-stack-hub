@@ -1,6 +1,6 @@
 """統計・レポート API"""
 
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 
 from fastapi import APIRouter, Query
 from sqlalchemy import func, select, extract, and_
@@ -19,7 +19,7 @@ async def get_stats_overview(
     db: DBSession,
 ):
     """ダッシュボード統計"""
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     current_year = now.year
     current_month = now.month
 
@@ -92,14 +92,22 @@ async def get_stats_overview(
     ]
 
     # Genre distribution (from books in shelf)
-    genre_result = await db.execute(
+    # JSONB配列を展開するには jsonb_array_elements_text を使う
+    genre_subq = (
         select(
-            func.unnest(Book.categories).label("genre"),
-            func.count().label("cnt"),
+            func.jsonb_array_elements_text(Book.categories).label("genre"),
+            Book.id.label("book_id"),
         )
         .join(UserBook, UserBook.book_id == Book.id)
         .where(UserBook.user_id == current_user.id)
-        .group_by("genre")
+        .subquery()
+    )
+    genre_result = await db.execute(
+        select(
+            genre_subq.c.genre,
+            func.count().label("cnt"),
+        )
+        .group_by(genre_subq.c.genre)
         .order_by(func.count().desc())
         .limit(10)
     )

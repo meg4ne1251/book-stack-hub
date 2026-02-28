@@ -68,94 +68,99 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface">
-      <div className="w-full max-w-md p-8 bg-background rounded-lg shadow-md">
-        <h1 className="text-2xl font-bold text-center mb-6">新規登録</h1>
+    <div className="min-h-screen flex items-center justify-center bg-[#faf7f2] px-4">
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-6">
+          <h1 className="font-serif text-xl font-bold text-stone-800">新規登録</h1>
+          <p className="text-[13px] text-stone-400 mt-1">BookStackHub</p>
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="email">メールアドレス</Label>
-            <Input
-              id="email"
-              type="email"
-              value={form.email}
-              onChange={(e) => updateField("email", e.target.value)}
-              required
-              autoComplete="email"
-            />
-            {errors.email && (
-              <p className="text-sm text-destructive mt-1">{errors.email}</p>
-            )}
-          </div>
+        <div className="p-5 bg-white rounded border border-stone-200 shadow-sm">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="email">メールアドレス</Label>
+              <Input
+                id="email"
+                type="email"
+                value={form.email}
+                onChange={(e) => updateField("email", e.target.value)}
+                required
+                autoComplete="email"
+              />
+              {errors.email && (
+                <p className="text-sm text-red-600 mt-1">{errors.email}</p>
+              )}
+            </div>
 
-          <div>
-            <Label htmlFor="username">ユーザー名</Label>
-            <Input
-              id="username"
-              value={form.username}
-              onChange={(e) => updateField("username", e.target.value)}
-              required
-              minLength={3}
-              maxLength={30}
-              pattern="^[a-zA-Z0-9_]+$"
-              title="英数字とアンダースコアのみ"
-              autoComplete="username"
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              3〜30文字、英数字とアンダースコアのみ
-            </p>
-            {errors.username && (
-              <p className="text-sm text-destructive mt-1">{errors.username}</p>
-            )}
-          </div>
-
-          <div>
-            <Label htmlFor="display_name">表示名</Label>
-            <Input
-              id="display_name"
-              value={form.display_name}
-              onChange={(e) => updateField("display_name", e.target.value)}
-              required
-              maxLength={50}
-            />
-            {errors.display_name && (
-              <p className="text-sm text-destructive mt-1">
-                {errors.display_name}
+            <div>
+              <Label htmlFor="username">ユーザー名</Label>
+              <Input
+                id="username"
+                value={form.username}
+                onChange={(e) => updateField("username", e.target.value)}
+                required
+                minLength={3}
+                maxLength={30}
+                pattern="^[a-zA-Z0-9_]+$"
+                title="英数字とアンダースコアのみ"
+                autoComplete="username"
+              />
+              <p className="text-xs text-stone-400 mt-1">
+                3〜30文字、英数字とアンダースコアのみ
               </p>
+              {errors.username && (
+                <p className="text-sm text-red-600 mt-1">{errors.username}</p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="display_name">表示名</Label>
+              <Input
+                id="display_name"
+                value={form.display_name}
+                onChange={(e) => updateField("display_name", e.target.value)}
+                required
+                maxLength={50}
+              />
+              {errors.display_name && (
+                <p className="text-sm text-red-600 mt-1">
+                  {errors.display_name}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="password">パスワード</Label>
+              <Input
+                id="password"
+                type="password"
+                value={form.password}
+                onChange={(e) => updateField("password", e.target.value)}
+                required
+                minLength={8}
+                autoComplete="new-password"
+              />
+              <p className="text-xs text-stone-400 mt-1">
+                8文字以上、英大文字・小文字・数字・記号のうち3種以上
+              </p>
+              {errors.password && (
+                <p className="text-sm text-red-600 mt-1">{errors.password}</p>
+              )}
+            </div>
+
+            {globalError && (
+              <p className="text-sm text-red-600">{globalError}</p>
             )}
-          </div>
 
-          <div>
-            <Label htmlFor="password">パスワード</Label>
-            <Input
-              id="password"
-              type="password"
-              value={form.password}
-              onChange={(e) => updateField("password", e.target.value)}
-              required
-              minLength={8}
-              autoComplete="new-password"
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              8文字以上、英大文字・小文字・数字・記号のうち3種以上
-            </p>
-            {errors.password && (
-              <p className="text-sm text-destructive mt-1">{errors.password}</p>
-            )}
-          </div>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "登録中..." : "新規登録"}
+            </Button>
+          </form>
+        </div>
 
-          {globalError && (
-            <p className="text-sm text-destructive">{globalError}</p>
-          )}
-
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "登録中..." : "新規登録"}
-          </Button>
-        </form>
-
-        <div className="mt-4 text-center text-sm text-muted-foreground">
+        <div className="mt-4 text-center text-[13px] text-stone-400">
           すでにアカウントをお持ちの方は{" "}
-          <Link href="/login" className="text-primary hover:underline">
+          <Link href="/login" className="text-amber-800 hover:underline">
             ログイン
           </Link>
         </div>

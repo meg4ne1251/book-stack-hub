@@ -54,12 +54,12 @@ export default function UserProfilePage() {
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto animate-pulse space-y-6">
+      <div className="max-w-3xl animate-pulse space-y-5">
         <div className="flex items-center gap-4">
-          <div className="w-20 h-20 rounded-full bg-muted" />
+          <div className="w-16 h-16 rounded-full bg-stone-100" />
           <div className="space-y-2">
-            <div className="h-6 bg-muted rounded w-32" />
-            <div className="h-4 bg-muted rounded w-24" />
+            <div className="h-5 bg-stone-100 rounded w-32" />
+            <div className="h-4 bg-stone-100 rounded w-24" />
           </div>
         </div>
       </div>
@@ -68,8 +68,8 @@ export default function UserProfilePage() {
 
   if (error) {
     return (
-      <div className="max-w-4xl mx-auto text-center py-12">
-        <p className="text-destructive">{error}</p>
+      <div className="max-w-3xl text-center py-10">
+        <p className="text-red-600 text-sm">{error}</p>
       </div>
     );
   }
@@ -77,10 +77,10 @@ export default function UserProfilePage() {
   if (!profile) return null;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-3xl space-y-6">
       {/* Profile header */}
       <div className="flex items-center gap-4">
-        <div className="w-20 h-20 rounded-full bg-muted overflow-hidden flex-shrink-0">
+        <div className="w-16 h-16 rounded-full bg-stone-100 overflow-hidden flex-shrink-0">
           {profile.avatar_url ? (
             <img
               src={profile.avatar_url}
@@ -88,14 +88,14 @@ export default function UserProfilePage() {
               className="w-full h-full object-cover"
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-2xl font-bold text-muted-foreground">
-              {profile.display_name[0]}
+            <div className="w-full h-full flex items-center justify-center text-xl font-bold text-stone-400">
+              {profile.display_name?.[0] || "?"}
             </div>
           )}
         </div>
         <div>
-          <h1 className="text-2xl font-bold">{profile.display_name}</h1>
-          <p className="text-muted-foreground">@{profile.username}</p>
+          <h1 className="font-serif text-xl font-bold text-stone-800">{profile.display_name}</h1>
+          <p className="text-stone-400 text-sm">@{profile.username}</p>
           {profile.bio && (
             <p className="text-sm mt-1">{profile.bio}</p>
           )}
@@ -104,9 +104,9 @@ export default function UserProfilePage() {
 
       {/* Public bookshelf */}
       <section className="space-y-4">
-        <h2 className="text-lg font-semibold">本棚</h2>
+        <h2 className="text-sm font-semibold text-stone-700">本棚</h2>
         {books.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-stone-400">
             公開されている書籍はありません
           </p>
         ) : (
@@ -117,7 +117,7 @@ export default function UserProfilePage() {
                 href={`/books/${ub.book.id}`}
                 className="group block"
               >
-                <div className="aspect-[2/3] bg-muted rounded overflow-hidden">
+                <div className="aspect-[2/3] bg-stone-100 rounded overflow-hidden">
                   {ub.book.cover_image_url ? (
                     <img
                       src={ub.book.cover_image_url}
@@ -125,7 +125,7 @@ export default function UserProfilePage() {
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-[10px] text-muted-foreground p-1 text-center">
+                    <div className="w-full h-full flex items-center justify-center text-[10px] text-stone-400 p-1 text-center">
                       {ub.book.title}
                     </div>
                   )}

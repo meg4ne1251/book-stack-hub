@@ -61,12 +61,12 @@ export default function BookDetailPage() {
       setLoading(true);
       try {
         const [bookRes, reviewsRes] = await Promise.all([
-          apiClient.get<Book>(`/books/${bookId}`),
+          apiClient.get<{ data: Book }>(`/books/${bookId}`),
           apiClient
             .get<PaginatedResponse<Review>>(`/books/${bookId}/reviews`)
             .catch(() => ({ data: [], meta: { page: 1, per_page: 20, total: 0, total_pages: 0 } })),
         ]);
-        setBook(bookRes);
+        setBook(bookRes.data);
         setReviews(reviewsRes.data);
 
         // Try to get user's book entry
@@ -99,12 +99,12 @@ export default function BookDetailPage() {
 
   const handleAddToShelf = async (status: BookStatus) => {
     try {
-      const res = await apiClient.post<UserBook>("/me/books", {
+      const res = await apiClient.post<{ data: UserBook }>("/me/books", {
         book_id: bookId,
         status,
       });
-      setUserBook(res);
-      setNewStatus(res.status);
+      setUserBook(res.data);
+      setNewStatus(res.data.status);
     } catch (err) {
       if (err instanceof ApiRequestError && err.code === "ALREADY_EXISTS") {
         // Already added, refresh
@@ -116,7 +116,7 @@ export default function BookDetailPage() {
     if (!userBook) return;
     setSaving(true);
     try {
-      const res = await apiClient.patch<UserBook>(
+      const res = await apiClient.patch<{ data: UserBook }>(
         `/me/books/${userBook.id}`,
         {
           status: newStatus,
@@ -124,7 +124,7 @@ export default function BookDetailPage() {
           private_memo: memo || null,
         }
       );
-      setUserBook(res);
+      setUserBook(res.data);
       setEditingStatus(false);
     } catch (err) {
       if (err instanceof ApiRequestError) {
@@ -176,13 +176,13 @@ export default function BookDetailPage() {
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto animate-pulse space-y-6">
-        <div className="flex gap-6">
-          <div className="w-48 h-72 bg-muted rounded-lg" />
-          <div className="flex-1 space-y-3">
-            <div className="h-8 bg-muted rounded w-3/4" />
-            <div className="h-5 bg-muted rounded w-1/2" />
-            <div className="h-5 bg-muted rounded w-1/3" />
+      <div className="max-w-3xl animate-pulse space-y-5">
+        <div className="flex gap-5">
+          <div className="w-40 h-60 bg-stone-100 rounded" />
+          <div className="flex-1 space-y-2">
+            <div className="h-6 bg-stone-100 rounded w-3/4" />
+            <div className="h-4 bg-stone-100 rounded w-1/2" />
+            <div className="h-4 bg-stone-100 rounded w-1/3" />
           </div>
         </div>
       </div>
@@ -191,8 +191,8 @@ export default function BookDetailPage() {
 
   if (error && !book) {
     return (
-      <div className="max-w-4xl mx-auto text-center py-12">
-        <p className="text-destructive">{error}</p>
+      <div className="max-w-3xl text-center py-10">
+        <p className="text-red-600 text-sm">{error}</p>
         <Button className="mt-4" variant="outline" onClick={() => router.back()}>
           戻る
         </Button>
@@ -203,11 +203,11 @@ export default function BookDetailPage() {
   if (!book) return null;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-3xl space-y-6">
       {/* Book Info */}
-      <div className="flex flex-col sm:flex-row gap-6">
-        <div className="w-48 flex-shrink-0">
-          <div className="aspect-[2/3] bg-muted rounded-lg overflow-hidden shadow-md">
+      <div className="flex flex-col sm:flex-row gap-5">
+        <div className="w-40 flex-shrink-0">
+          <div className="aspect-[2/3] bg-stone-100 rounded overflow-hidden shadow-sm">
             {book.cover_image_url ? (
               <img
                 src={book.cover_image_url}
@@ -215,7 +215,7 @@ export default function BookDetailPage() {
                 className="w-full h-full object-cover"
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-sm text-muted-foreground p-4 text-center">
+              <div className="w-full h-full flex items-center justify-center text-[13px] text-stone-400 p-3 text-center">
                 {book.title}
               </div>
             )}
@@ -224,17 +224,17 @@ export default function BookDetailPage() {
 
         <div className="flex-1 space-y-3">
           <div>
-            <h1 className="text-2xl font-bold">{book.title}</h1>
+            <h1 className="font-serif text-xl font-bold text-stone-800">{book.title}</h1>
             {book.subtitle && (
-              <p className="text-lg text-muted-foreground">{book.subtitle}</p>
+              <p className="text-sm text-stone-500 mt-0.5">{book.subtitle}</p>
             )}
           </div>
 
-          <p className="text-muted-foreground">
+          <p className="text-stone-500 text-sm">
             {book.authors?.join(", ") || "著者不明"}
           </p>
 
-          <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+          <div className="flex flex-wrap gap-3 text-[13px] text-stone-400">
             {book.publisher && <span>{book.publisher}</span>}
             {book.published_date && <span>{book.published_date}</span>}
             {book.page_count && <span>{book.page_count}ページ</span>}
@@ -283,7 +283,7 @@ export default function BookDetailPage() {
               </Button>
             </div>
           ) : (
-            <div className="bg-card border border-border rounded-lg p-4 space-y-3">
+            <div className="bg-white border border-stone-200 rounded p-3 space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Badge>{STATUS_LABELS[userBook.status]}</Badge>
@@ -305,7 +305,7 @@ export default function BookDetailPage() {
                   <Button
                     size="sm"
                     variant="outline"
-                    className="text-destructive"
+                    className="text-red-600"
                     onClick={handleRemoveFromShelf}
                   >
                     削除
@@ -329,22 +329,22 @@ export default function BookDetailPage() {
       {/* Description */}
       {book.description && (
         <section className="space-y-2">
-          <h2 className="text-lg font-semibold">あらすじ・概要</h2>
-          <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+          <h2 className="text-sm font-semibold text-stone-700">あらすじ・概要</h2>
+          <p className="text-[13px] text-stone-500 leading-relaxed whitespace-pre-wrap">
             {book.description}
           </p>
         </section>
       )}
 
       {/* Data credit */}
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs text-stone-400">
         データ提供元: {book.source === "google" ? "Google Books" : book.source === "rakuten" ? "楽天ブックス" : book.source}
       </p>
 
       {/* Reviews */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">レビュー</h2>
+          <h2 className="text-sm font-semibold text-stone-700">レビュー</h2>
           {userBook && (
             <Button
               size="sm"
@@ -357,7 +357,7 @@ export default function BookDetailPage() {
         </div>
 
         {reviews.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-[13px] text-stone-400">
             まだレビューがありません
           </p>
         ) : (
@@ -365,13 +365,13 @@ export default function BookDetailPage() {
             {reviews.map((review) => (
               <div
                 key={review.id}
-                className="border border-border rounded-lg p-4 space-y-2"
+                className="border border-stone-200 rounded p-3 space-y-1.5 bg-white"
               >
-                <h3 className="font-medium">{review.title}</h3>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                <h3 className="font-medium text-sm text-stone-700">{review.title}</h3>
+                <p className="text-[13px] text-stone-500 whitespace-pre-wrap">
                   {review.body}
                 </p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-stone-400">
                   {new Date(review.created_at).toLocaleDateString("ja-JP")}
                 </p>
               </div>
@@ -411,7 +411,7 @@ export default function BookDetailPage() {
                     className={`text-2xl ${
                       rating && star <= rating
                         ? "text-yellow-500"
-                        : "text-muted-foreground"
+                        : "text-stone-300"
                     }`}
                     onClick={() =>
                       setRating(rating === star ? null : star)
@@ -434,7 +434,7 @@ export default function BookDetailPage() {
               />
             </div>
 
-            {error && <p className="text-sm text-destructive">{error}</p>}
+            {error && <p className="text-sm text-red-600">{error}</p>}
 
             <div className="flex gap-2 justify-end">
               <Button

@@ -23,6 +23,26 @@ ALLOWED_IMAGE_DOMAINS = {
 
 SIGNATURE_EXPIRE_SECONDS = 24 * 60 * 60  # 24時間
 
+# 画像マジックバイト（ファイルヘッダ）検証
+IMAGE_MAGIC_BYTES = {
+    b'\xff\xd8\xff': 'image/jpeg',
+    b'\x89PNG\r\n\x1a\n': 'image/png',
+    b'RIFF': 'image/webp',  # WebPはRIFF...WEBP形式
+}
+
+
+def validate_image_magic_bytes(data: bytes) -> bool:
+    """マジックバイト検証: JPEG/PNG/WebPのファイルヘッダを確認"""
+    if len(data) < 12:
+        return False
+    for magic, _ in IMAGE_MAGIC_BYTES.items():
+        if data[:len(magic)] == magic:
+            # WebPは追加検証: RIFF....WEBP
+            if magic == b'RIFF':
+                return data[8:12] == b'WEBP'
+            return True
+    return False
+
 
 def _is_allowed_domain(url: str) -> bool:
     """SSRF対策: 許可ドメインのみダウンロード可能"""

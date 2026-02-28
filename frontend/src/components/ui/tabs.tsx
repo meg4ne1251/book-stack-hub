@@ -33,7 +33,7 @@ function TabsList({
   return (
     <div
       className={cn(
-        "inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground",
+        "inline-flex h-9 items-center justify-center rounded bg-stone-100 p-1 text-stone-500",
         className
       )}
       {...props}
@@ -51,10 +51,10 @@ function TabsTrigger({ value, className, ...props }: TabsTriggerProps) {
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all",
+        "inline-flex items-center justify-center whitespace-nowrap rounded px-3 py-1 text-[13px] font-medium transition-all",
         context.value === value
-          ? "bg-background text-foreground shadow-sm"
-          : "hover:bg-background/50",
+          ? "bg-white text-stone-800 shadow-sm"
+          : "hover:text-stone-700",
         className
       )}
       onClick={() => context.onValueChange(value)}
