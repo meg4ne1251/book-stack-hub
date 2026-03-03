@@ -1,12 +1,13 @@
 """書籍API - 検索・詳細・カスタム書籍登録"""
 import logging
 import uuid
+from datetime import date
 
 from fastapi import APIRouter, File, Form, Query, UploadFile
 
 from app.dependencies import CurrentUser, DBSession
 from app.models.book import Book
-from app.schemas.book import BookRegister, BookResponse, BookSearchResultResponse, CustomBookCreate
+from app.schemas.book import BookResponse, BookSearchResultResponse, CustomBookCreate
 from app.services.book_search import search_external, search_internal
 from app.services.image_service import (
     convert_and_save_image,
@@ -35,8 +36,8 @@ MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB
 def _book_to_response(book: Book) -> dict:
     """Bookモデルをレスポンスdictに変換（署名付きURL付き）"""
     cover_url = None
-    if book.cover_image_url:
-        cover_url = generate_signed_url(book.cover_image_url)
+    if book.cover_image_path:
+        cover_url = generate_signed_url(book.cover_image_path)
 
     return {
         "id": str(book.id),
@@ -105,58 +106,6 @@ async def search_books(
             ).model_dump())
 
     return paginated_response(results, page, per_page, len(results))
-
-
-@router.post("/register")
-async def register_book(
-    body: BookRegister,
-    current_user: CurrentUser,
-    db: DBSession,
-):
-    """外部API検索結果をDBに登録（ISBN重複時は既存を返す）"""
-    from sqlalchemy import select, or_
-
-    # ISBN で既存書籍を検索
-    if body.isbn_13 or body.isbn_10:
-        conditions = []
-        if body.isbn_13:
-            conditions.append(Book.isbn_13 == body.isbn_13)
-        if body.isbn_10:
-            conditions.append(Book.isbn_10 == body.isbn_10)
-
-        result = await db.execute(
-            select(Book).where(or_(*conditions), Book.is_custom.is_(False))
-        )
-        existing = result.scalar_one_or_none()
-        if existing:
-            return {"data": _book_to_response(existing)}
-
-    # シリーズ情報抽出
-    series_title, volume_number = extract_series_info(body.title)
-
-    book = Book(
-        isbn_10=body.isbn_10,
-        isbn_13=body.isbn_13,
-        title=body.title,
-        subtitle=body.subtitle,
-        authors=body.authors or [],
-        publisher=body.publisher,
-        published_date=body.published_date,
-        description=body.description,
-        page_count=body.page_count,
-        cover_image_url=body.cover_image_url,
-        categories=body.categories or [],
-        language=body.language,
-        series_title=series_title,
-        volume_number=volume_number,
-        source=body.source,
-        is_custom=False,
-    )
-    db.add(book)
-    await db.flush()
-    await db.refresh(book)
-
-    return {"data": _book_to_response(book)}
 
 
 @router.get("/{book_id}")
@@ -250,16 +199,23 @@ async def create_custom_book(
     # シリーズ情報抽出
     series_title, volume_number = extract_series_info(title)
 
+    parsed_date = None
+    if published_date:
+        try:
+            parsed_date = date.fromisoformat(published_date)
+        except ValueError:
+            raise ValidationException("Invalid date format. Use YYYY-MM-DD.")
+
     book = Book(
         title=title,
         authors=authors_list,
         publisher=publisher,
-        published_date=published_date,
+        published_date=parsed_date,
         isbn_10=isbn_10,
         isbn_13=isbn_13,
         description=description,
         page_count=page_count,
-        cover_image_url=cover_path,
+        cover_image_path=cover_path,
         series_title=series_title,
         volume_number=volume_number,
         source="custom",

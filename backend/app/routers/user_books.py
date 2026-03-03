@@ -1,6 +1,6 @@
 """ユーザー書籍API（本棚）"""
 import uuid
-from datetime import datetime
+from datetime import date
 
 from fastapi import APIRouter, Query
 from sqlalchemy import func, select
@@ -167,9 +167,9 @@ async def update_user_book(
     for key, value in update_data.items():
         if key in ("started_reading_at", "finished_reading_at") and value:
             try:
-                value = datetime.fromisoformat(value)
+                value = date.fromisoformat(value)
             except ValueError:
-                raise ValidationException(f"Invalid date format for {key}. Use ISO 8601 format.")
+                raise ValidationException(f"Invalid date format for {key}. Use YYYY-MM-DD.")
         setattr(user_book, key, value)
 
     return {"data": _user_book_to_response(user_book)}

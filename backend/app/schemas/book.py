@@ -59,20 +59,3 @@ class CustomBookCreate(BaseModel):
             if len(author) > 100:
                 raise ValueError("Each author name must be 100 characters or less")
         return v
-
-
-class BookRegister(BaseModel):
-    """外部API検索結果からDBに書籍を登録するためのスキーマ"""
-    isbn_10: str | None = None
-    isbn_13: str | None = None
-    title: str = Field(max_length=500)
-    subtitle: str | None = Field(default=None, max_length=500)
-    authors: list[str] | None = Field(default=None)
-    publisher: str | None = Field(default=None, max_length=200)
-    published_date: str | None = None
-    description: str | None = None
-    page_count: int | None = None
-    cover_image_url: str | None = None
-    categories: list[str] | None = None
-    language: str | None = None
-    source: str = Field(max_length=50)

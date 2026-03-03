@@ -11,7 +11,6 @@ import { apiClient } from "@/lib/api-client";
 const navigation = [
   { name: "ダッシュボード", href: "/dashboard", icon: "LayoutDashboard" },
   { name: "本棚", href: "/bookshelf", icon: "Library" },
-  { name: "書籍検索", href: "/search", icon: "Search" },
   { name: "書籍追加", href: "/books/add", icon: "Plus" },
   { name: "読書ログ", href: "/reading-log", icon: "BookOpen" },
   { name: "プレイリスト", href: "/playlists", icon: "ListMusic" },
@@ -43,7 +42,7 @@ export default function MainLayout({
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-stone-400 text-sm">読み込み中...</p>
+        <p className="text-muted-foreground">読み込み中...</p>
       </div>
     );
   }
@@ -58,26 +57,26 @@ export default function MainLayout({
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-56 bg-stone-50 border-r border-stone-200 transition-transform duration-200 lg:translate-x-0 lg:static",
+          "fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transition-transform duration-300 lg:translate-x-0 lg:static",
           isSidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex items-center h-14 px-5 border-b border-stone-200">
-          <Link href="/dashboard" className="font-serif text-lg font-semibold text-stone-800 tracking-tight">
+        <div className="flex items-center h-16 px-6 border-b border-border">
+          <Link href="/dashboard" className="text-xl font-bold text-primary">
             BookStackHub
           </Link>
         </div>
 
-        <nav className="px-3 py-3 space-y-0.5">
+        <nav className="p-4 space-y-1">
           {navigation.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center px-3 py-2 rounded text-[13px] transition-colors",
+                "flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors",
                 pathname === item.href
-                  ? "bg-amber-100/80 text-amber-900 font-medium"
-                  : "text-stone-600 hover:bg-stone-100 hover:text-stone-800"
+                  ? "bg-primary-light text-primary"
+                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
               )}
             >
               {item.name}
@@ -86,17 +85,19 @@ export default function MainLayout({
         </nav>
 
         {user && (
-          <div className="absolute bottom-0 left-0 right-0 px-4 py-3 border-t border-stone-200">
-            <p className="text-[13px] font-medium text-stone-700 truncate">{user.display_name}</p>
-            <p className="text-xs text-stone-400 truncate">
+          <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border">
+            <p className="text-sm font-medium truncate">{user.display_name}</p>
+            <p className="text-xs text-muted-foreground truncate">
               @{user.username}
             </p>
-            <button
-              className="mt-2 text-xs text-stone-400 hover:text-red-600 transition-colors"
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full mt-2 text-muted-foreground hover:text-destructive"
               onClick={handleLogout}
             >
               ログアウト
-            </button>
+            </Button>
           </div>
         )}
       </aside>
@@ -104,20 +105,20 @@ export default function MainLayout({
       {/* Overlay for mobile */}
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/30 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
           onClick={toggleSidebar}
         />
       )}
 
       {/* Main Content */}
       <main className="flex-1 min-w-0">
-        <header className="sticky top-0 z-30 flex items-center h-14 px-5 bg-[#faf7f2]/95 backdrop-blur-sm border-b border-stone-200">
+        <header className="sticky top-0 z-30 flex items-center h-16 px-6 bg-background border-b border-border">
           <button
             onClick={toggleSidebar}
-            className="lg:hidden mr-3 p-1.5 rounded hover:bg-accent text-stone-500"
+            className="lg:hidden mr-4 p-2 rounded-md hover:bg-accent"
           >
             <span className="sr-only">メニュー</span>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="3" y1="6" x2="21" y2="6" />
               <line x1="3" y1="12" x2="21" y2="12" />
               <line x1="3" y1="18" x2="21" y2="18" />
@@ -126,7 +127,7 @@ export default function MainLayout({
           <div className="flex-1" />
         </header>
 
-        <div className="px-5 py-5 max-w-5xl">{children}</div>
+        <div className="p-6">{children}</div>
       </main>
     </div>
   );

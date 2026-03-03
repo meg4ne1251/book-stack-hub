@@ -14,7 +14,7 @@ from app.models.book import Book
 from app.models.user_book import UserBook
 from app.models.review import Review
 from app.models.playlist import Playlist
-from app.utils.exceptions import ForbiddenException, NotFoundException, ValidationException
+from app.utils.exceptions import NotFoundException
 from app.utils.response import paginated_response
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -115,17 +115,8 @@ async def update_user(
     db: DBSession,
 ):
     """ユーザー状態変更"""
-    try:
-        parsed_user_id = uuid.UUID(user_id)
-    except ValueError:
-        raise ValidationException("Invalid user_id format")
-
-    # 管理者自身への変更を禁止（自己ロック・自己降格防止）
-    if parsed_user_id == admin.id:
-        raise ForbiddenException("Cannot modify your own account via admin API")
-
     result = await db.execute(
-        select(User).where(User.id == parsed_user_id)
+        select(User).where(User.id == uuid.UUID(user_id))
     )
     user = result.scalar_one_or_none()
     if not user:
@@ -156,17 +147,8 @@ async def delete_user(
     db: DBSession,
 ):
     """ユーザー削除（論理削除）"""
-    try:
-        parsed_user_id = uuid.UUID(user_id)
-    except ValueError:
-        raise ValidationException("Invalid user_id format")
-
-    # 管理者自身の削除を禁止
-    if parsed_user_id == admin.id:
-        raise ForbiddenException("Cannot deactivate your own account via admin API")
-
     result = await db.execute(
-        select(User).where(User.id == parsed_user_id)
+        select(User).where(User.id == uuid.UUID(user_id))
     )
     user = result.scalar_one_or_none()
     if not user:
@@ -221,13 +203,8 @@ async def update_review_visibility(
     db: DBSession,
 ):
     """レビュー非公開化"""
-    try:
-        parsed_review_id = uuid.UUID(review_id)
-    except ValueError:
-        raise ValidationException("Invalid review_id format")
-
     result = await db.execute(
-        select(Review).where(Review.id == parsed_review_id)
+        select(Review).where(Review.id == uuid.UUID(review_id))
     )
     review = result.scalar_one_or_none()
     if not review:
@@ -285,13 +262,8 @@ async def update_playlist_visibility(
     db: DBSession,
 ):
     """プレイリスト非公開化"""
-    try:
-        parsed_playlist_id = uuid.UUID(playlist_id)
-    except ValueError:
-        raise ValidationException("Invalid playlist_id format")
-
     result = await db.execute(
-        select(Playlist).where(Playlist.id == parsed_playlist_id)
+        select(Playlist).where(Playlist.id == uuid.UUID(playlist_id))
     )
     playlist = result.scalar_one_or_none()
     if not playlist:

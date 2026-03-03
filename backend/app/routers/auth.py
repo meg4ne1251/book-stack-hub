@@ -65,18 +65,9 @@ def _clear_refresh_cookie(response: Response) -> None:
 @router.post("/register", response_model=AuthResponse)
 async def register(
     body: RegisterRequest,
-    request: Request,
     response: Response,
     db: DBSession,
 ):
-    # Rate limit: 10 requests/min per IP (登録も悪用対策が必要)
-    client_ip = request.client.host if request.client else "unknown"
-    allowed = await check_rate_limit(
-        f"rate_limit:register:{client_ip}", max_requests=10, window_seconds=60
-    )
-    if not allowed:
-        raise RateLimitExceededException()
-
     # Turnstile verification
     if not await verify_turnstile(body.turnstile_token):
         raise ValidationException("Bot verification failed")

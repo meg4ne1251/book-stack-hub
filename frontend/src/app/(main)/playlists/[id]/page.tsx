@@ -138,12 +138,12 @@ export default function PlaylistDetailPage() {
 
   if (loading) {
     return (
-      <div className="max-w-3xl animate-pulse space-y-4">
-        <div className="h-6 bg-stone-100 rounded w-1/2" />
-        <div className="h-4 bg-stone-100 rounded w-3/4" />
+      <div className="max-w-3xl mx-auto animate-pulse space-y-4">
+        <div className="h-8 bg-muted rounded w-1/2" />
+        <div className="h-4 bg-muted rounded w-3/4" />
         <div className="space-y-3 mt-6">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-20 bg-stone-100 rounded" />
+            <div key={i} className="h-20 bg-muted rounded-lg" />
           ))}
         </div>
       </div>
@@ -152,8 +152,8 @@ export default function PlaylistDetailPage() {
 
   if (error && !playlist) {
     return (
-      <div className="max-w-3xl text-center py-10">
-        <p className="text-red-600 text-sm">{error}</p>
+      <div className="max-w-3xl mx-auto text-center py-12">
+        <p className="text-destructive">{error}</p>
         <Button className="mt-4" variant="outline" onClick={() => router.back()}>
           戻る
         </Button>
@@ -164,13 +164,13 @@ export default function PlaylistDetailPage() {
   if (!playlist) return null;
 
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="max-w-3xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="font-serif text-xl font-bold text-stone-800">{playlist.title}</h1>
+          <h1 className="text-2xl font-bold">{playlist.title}</h1>
           {playlist.description && (
-            <p className="text-stone-500 text-sm mt-1">
+            <p className="text-muted-foreground mt-1">
               {playlist.description}
             </p>
           )}
@@ -178,11 +178,11 @@ export default function PlaylistDetailPage() {
             <Badge variant="outline">
               {playlist.is_public ? "公開" : "非公開"}
             </Badge>
-            <span className="text-sm text-stone-400">
+            <span className="text-sm text-muted-foreground">
               {playlist.items?.length || 0}冊
             </span>
             {playlist.share_slug && (
-              <span className="text-xs text-stone-400">
+              <span className="text-xs text-muted-foreground">
                 共有URL: /share/{playlist.share_slug}
               </span>
             )}
@@ -195,7 +195,8 @@ export default function PlaylistDetailPage() {
           <Button
             size="sm"
             variant="outline"
-            className="text-red-600"
+            className="text-destructive"
+            onClick={handleDelete}
           >
             削除
           </Button>
@@ -215,12 +216,12 @@ export default function PlaylistDetailPage() {
             .map((item, index) => (
               <div
                 key={item.id}
-                className="flex items-center gap-4 p-3 border border-stone-200 rounded"
+                className="flex items-center gap-4 p-3 border border-border rounded-lg"
               >
-                <span className="text-sm text-stone-400 w-6 text-center">
+                <span className="text-sm text-muted-foreground w-6 text-center">
                   {index + 1}
                 </span>
-                <div className="w-10 h-14 flex-shrink-0 bg-stone-100 rounded overflow-hidden">
+                <div className="w-10 h-14 flex-shrink-0 bg-muted rounded overflow-hidden">
                   {item.book.cover_image_url ? (
                     <img
                       src={item.book.cover_image_url}
@@ -228,24 +229,24 @@ export default function PlaylistDetailPage() {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="w-full h-full bg-stone-100" />
+                    <div className="w-full h-full bg-muted" />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <Link
                     href={`/books/${item.book.id}`}
-                    className="text-sm font-medium hover:text-amber-800 truncate block"
+                    className="text-sm font-medium hover:text-primary truncate block"
                   >
                     {item.book.title}
                   </Link>
-                  <p className="text-xs text-stone-400 truncate">
+                  <p className="text-xs text-muted-foreground truncate">
                     {item.book.authors?.join(", ")}
                   </p>
                 </div>
                 <Button
                   size="sm"
                   variant="outline"
-                  className="text-red-600"
+                  className="text-destructive"
                   onClick={() => handleRemoveItem(item.id)}
                 >
                   削除
@@ -255,7 +256,7 @@ export default function PlaylistDetailPage() {
         </div>
       ) : (
         <div className="text-center py-8">
-          <p className="text-stone-400 text-sm">
+          <p className="text-muted-foreground">
             書籍がまだ追加されていません
           </p>
         </div>
@@ -335,10 +336,10 @@ export default function PlaylistDetailPage() {
               {bookSearchResults.map((book) => (
                 <div
                   key={book.id}
-                  className="flex items-center gap-3 p-2 border border-stone-200 rounded hover:bg-stone-50 cursor-pointer"
+                  className="flex items-center gap-3 p-2 border border-border rounded hover:bg-accent/30 cursor-pointer"
                   onClick={() => handleAddBook(book.id)}
                 >
-                  <div className="w-8 h-12 flex-shrink-0 bg-stone-100 rounded overflow-hidden">
+                  <div className="w-8 h-12 flex-shrink-0 bg-muted rounded overflow-hidden">
                     {book.cover_image_url ? (
                       <img
                         src={book.cover_image_url}
@@ -346,12 +347,13 @@ export default function PlaylistDetailPage() {
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <div className="w-full h-full bg-stone-100" />
+                      <div className="w-full h-full bg-muted" />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{book.title}</p>
-                    <p className="text-xs text-stone-400 truncate">
+                    <p className="text-xs text-muted-foreground truncate">
+                      {book.authors?.join(", ")}
                     </p>
                   </div>
                 </div>

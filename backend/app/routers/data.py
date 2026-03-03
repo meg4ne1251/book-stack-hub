@@ -41,17 +41,12 @@ async def import_data(
     if len(content) > 10 * 1024 * 1024:  # 10MB limit
         raise ValidationException("File too large. Maximum 10MB.")
 
-    try:
-        decoded_content = content.decode("utf-8")
-    except UnicodeDecodeError:
-        raise ValidationException("File encoding is not UTF-8. Please save the file as UTF-8.")
-
     # Queue import task
     from app.tasks.data import process_import
 
     task = process_import.delay(
         str(current_user.id),
-        decoded_content,
+        content.decode("utf-8"),
         filename,
     )
 
