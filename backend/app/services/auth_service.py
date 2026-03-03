@@ -129,12 +129,12 @@ async def register_user(
     # Check email uniqueness
     result = await db.execute(select(User).where(User.email == email))
     if result.scalar_one_or_none():
-        raise AlreadyExistsException("Email already registered")
+        raise AlreadyExistsException("このメールアドレスは既に登録されています")
 
     # Check username uniqueness
     result = await db.execute(select(User).where(User.username == username))
     if result.scalar_one_or_none():
-        raise AlreadyExistsException("Username already taken")
+        raise AlreadyExistsException("このユーザー名は既に使用されています")
 
     user = User(
         email=email,

@@ -35,9 +35,7 @@ MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB
 
 def _book_to_response(book: Book) -> dict:
     """Bookモデルをレスポンスdictに変換（署名付きURL付き）"""
-    cover_url = None
-    if book.cover_image_path:
-        cover_url = generate_signed_url(book.cover_image_path)
+    cover_url = book.cover_image_url
 
     return {
         "id": str(book.id),
@@ -129,6 +127,69 @@ async def get_book(
     return {"data": _book_to_response(book)}
 
 
+@router.post("/register")
+async def register_external_book(
+    current_user: CurrentUser,
+    db: DBSession,
+    body: dict,
+):
+    """外部検索結果の書籍をマスターDBに登録する（既存ならそのまま返す）"""
+    from sqlalchemy import select, or_
+
+    isbn_10 = body.get("isbn_10")
+    isbn_13 = body.get("isbn_13")
+
+    # ISBN で既存チェック
+    if isbn_10 or isbn_13:
+        conditions = []
+        if isbn_13:
+            conditions.append(Book.isbn_13 == isbn_13)
+        if isbn_10:
+            conditions.append(Book.isbn_10 == isbn_10)
+        result = await db.execute(
+            select(Book).where(or_(*conditions), Book.is_custom.is_(False))
+        )
+        existing = result.scalar_one_or_none()
+        if existing:
+            return {"data": _book_to_response(existing)}
+
+    # シリーズ情報抽出
+    title = body.get("title", "")
+    series_title, volume_number = extract_series_info(title)
+
+    # 表紙画像ダウンロード
+    cover_path = None
+    cover_image_url = body.get("cover_image_url")
+    if cover_image_url:
+        try:
+            cover_path = download_and_convert_cover(cover_image_url)
+        except Exception:
+            logger.warning("Failed to download cover image: %s", cover_image_url)
+
+    book = Book(
+        isbn_10=isbn_10,
+        isbn_13=isbn_13,
+        title=title,
+        subtitle=body.get("subtitle"),
+        series_title=series_title,
+        volume_number=volume_number,
+        authors=body.get("authors") or [],
+        publisher=body.get("publisher"),
+        published_date=body.get("published_date"),
+        description=body.get("description"),
+        page_count=body.get("page_count"),
+        cover_image_url=cover_image_url,
+        categories=body.get("categories") or [],
+        language=body.get("language"),
+        source=body.get("source", "external"),
+        is_custom=False,
+    )
+    db.add(book)
+    await db.flush()
+
+    return {"data": _book_to_response(book)}
+
+
 @router.post("/custom")
 async def create_custom_book(
     current_user: CurrentUser,
@@ -215,7 +276,7 @@ async def create_custom_book(
         isbn_13=isbn_13,
         description=description,
         page_count=page_count,
-        cover_image_path=cover_path,
+        cover_image_url=cover_path,
         series_title=series_title,
         volume_number=volume_number,
         source="custom",

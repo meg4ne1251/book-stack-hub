@@ -3,10 +3,12 @@ import sys
 from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.config import settings
+from app.utils.exceptions import AppException
 from app.routers import (
     admin, auth, books, data, health, images, playlists,
     reading_logs, reviews, stats, tags, tasks, user_books, users,
@@ -69,6 +71,21 @@ app = FastAPI(
     openapi_url="/api/v1/openapi.json",
     lifespan=lifespan,
 )
+
+# Custom exception handler — return {"error": {...}} without FastAPI's "detail" wrapper
+@app.exception_handler(AppException)
+async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "error": {
+                "code": exc.error_code,
+                "message": exc.error_message,
+                "details": exc.error_details,
+            }
+        },
+    )
+
 
 # CORS
 app.add_middleware(

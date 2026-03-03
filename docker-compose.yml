@@ -15,9 +15,9 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/api/v1/health"]
-      interval: 30s
+      interval: 40s
       timeout: 5s
-      retries: 3
+      retries: 5
 
   frontend:
     build:

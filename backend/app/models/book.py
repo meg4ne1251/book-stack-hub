@@ -1,5 +1,6 @@
 import uuid
 
+import sqlalchemy as sa
 from sqlalchemy import Boolean, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -24,7 +25,7 @@ class Book(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     volume_number: Mapped[str | None] = mapped_column(String(50), nullable=True)
     authors: Mapped[list] = mapped_column(
-        JSONB, nullable=False, server_default="'[]'::jsonb"
+        JSONB, nullable=False, server_default=sa.text("'[]'::jsonb")
     )
     publisher: Mapped[str | None] = mapped_column(String(200), nullable=True)
     published_date: Mapped[str | None] = mapped_column(
@@ -36,11 +37,11 @@ class Book(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         String(500), nullable=True
     )
     categories: Mapped[list] = mapped_column(
-        JSONB, nullable=False, server_default="'[]'::jsonb"
+        JSONB, nullable=False, server_default=sa.text("'[]'::jsonb")
     )
     language: Mapped[str | None] = mapped_column(String(10), nullable=True)
     source: Mapped[str] = mapped_column(
-        String(50), nullable=False, server_default="'manual'"
+        String(50), nullable=False, server_default="manual"
     )
     is_custom: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default="false"

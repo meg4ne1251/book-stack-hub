@@ -18,6 +18,7 @@ export default function RegisterPage() {
     username: "",
     display_name: "",
     password: "",
+    password_confirm: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [globalError, setGlobalError] = useState("");
@@ -34,9 +35,16 @@ export default function RegisterPage() {
     setErrors({});
     setLoading(true);
 
+    if (form.password !== form.password_confirm) {
+      setErrors({ password_confirm: "パスワードが一致しません" });
+      setLoading(false);
+      return;
+    }
+
     try {
+      const { password_confirm: _, ...registerData } = form;
       const res = await apiClient.post<AuthResponse>("/auth/register", {
-        ...form,
+        ...registerData,
         turnstile_token: "dev-mode",
       });
 
@@ -57,10 +65,10 @@ export default function RegisterPage() {
           }
           setErrors(fieldErrors);
         } else {
-          setGlobalError(err.message);
+          setGlobalError(err.message || "登録に失敗しました");
         }
       } else {
-        setGlobalError("登録に失敗しました");
+        setGlobalError("サーバーとの通信に失敗しました。しばらく経ってから再度お試しください。");
       }
     } finally {
       setLoading(false);
@@ -145,6 +153,24 @@ export default function RegisterPage() {
               </p>
               {errors.password && (
                 <p className="text-sm text-red-600 mt-1">{errors.password}</p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="password_confirm">パスワード（確認）</Label>
+              <Input
+                id="password_confirm"
+                type="password"
+                value={form.password_confirm}
+                onChange={(e) => updateField("password_confirm", e.target.value)}
+                required
+                minLength={8}
+                autoComplete="new-password"
+              />
+              {errors.password_confirm && (
+                <p className="text-sm text-red-600 mt-1">
+                  {errors.password_confirm}
+                </p>
               )}
             </div>
 
