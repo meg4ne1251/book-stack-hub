@@ -16,9 +16,8 @@ import { apiClient, ApiRequestError } from "@/lib/api-client";
 import type { Book, BookStatus } from "@/types/api";
 
 const STATUS_OPTIONS: { value: BookStatus; label: string }[] = [
-  { value: "want_to_read", label: "読みたい" },
-  { value: "unread", label: "未読" },
-  { value: "tsundoku", label: "積読" },
+  { value: "want_to_read", label: "買いたい/読みたい" },
+  { value: "unread", label: "所有/未読" },
   { value: "reading", label: "読書中" },
   { value: "finished", label: "読了" },
 ];

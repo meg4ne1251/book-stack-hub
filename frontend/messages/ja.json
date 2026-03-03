@@ -30,9 +30,8 @@
     "title": "本棚",
     "addBook": "書籍を追加",
     "status": {
-      "want_to_read": "読みたい",
-      "unread": "未読",
-      "tsundoku": "積読",
+      "want_to_read": "買いたい/読みたい",
+      "unread": "所有/未読",
       "reading": "読書中",
       "suspended": "中断",
       "finished": "読了"

@@ -43,7 +43,6 @@ export const metadata: Metadata = {
       { rel: "apple-touch-icon-precomposed", url: "/apple-icon-precomposed.png" },
     ],
   },
-  manifest: "/manifest.json",
 };
 
 export default function RootLayout({

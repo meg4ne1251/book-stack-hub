@@ -3,7 +3,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 ValidStatus = Literal[
-    "want_to_read", "unread", "tsundoku", "reading", "suspended", "finished"
+    "want_to_read", "unread", "reading", "suspended", "finished"
 ]
 
 

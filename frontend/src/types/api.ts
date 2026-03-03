@@ -51,7 +51,6 @@ export interface Book {
 export type BookStatus =
   | "want_to_read"
   | "unread"
-  | "tsundoku"
   | "reading"
   | "suspended"
   | "finished";

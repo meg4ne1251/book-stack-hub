@@ -23,9 +23,8 @@ import type {
 } from "@/types/api";
 
 const STATUS_LABELS: Record<BookStatus, string> = {
-  want_to_read: "読みたい",
-  unread: "未読",
-  tsundoku: "積読",
+  want_to_read: "買いたい/読みたい",
+  unread: "所有/未読",
   reading: "読書中",
   suspended: "中断",
   finished: "読了",
@@ -267,7 +266,7 @@ export default function BookDetailPage() {
           {!userBook ? (
             <div className="flex flex-wrap gap-2 pt-2">
               <Button onClick={() => handleAddToShelf("want_to_read")}>
-                読みたいに追加
+                買いたい/読みたいに追加
               </Button>
               <Button
                 variant="outline"

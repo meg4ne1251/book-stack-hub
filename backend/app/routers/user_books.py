@@ -24,7 +24,7 @@ from app.utils.response import paginated_response
 router = APIRouter(prefix="/me/books", tags=["bookshelf"])
 
 VALID_STATUSES = {
-    "want_to_read", "unread", "tsundoku", "reading", "suspended", "finished"
+    "want_to_read", "unread", "reading", "suspended", "finished"
 }
 
 
