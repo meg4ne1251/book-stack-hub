@@ -32,11 +32,7 @@ export function CustomBookForm({ onSuccess }: CustomBookFormProps) {
     try {
       const formData = new FormData();
       formData.append("title", title);
-      if (authors) {
-        authors.split(",").forEach((a) => {
-          formData.append("authors", a.trim());
-        });
-      }
+      if (authors) formData.append("authors", authors);
       if (publisher) formData.append("publisher", publisher);
       if (publishedDate) formData.append("published_date", publishedDate);
       if (isbn) formData.append("isbn", isbn);

@@ -46,6 +46,9 @@ def _parse_google_books_item(item: dict) -> BookSearchResult:
     image_links = info.get("imageLinks", {})
     if image_links:
         cover_url = image_links.get("thumbnail") or image_links.get("smallThumbnail")
+        # HTTPをHTTPSに統一（Mixed Content警告回避）
+        if cover_url and cover_url.startswith("http://"):
+            cover_url = cover_url.replace("http://", "https://", 1)
 
     return BookSearchResult(
         isbn_10=isbn_10,

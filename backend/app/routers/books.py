@@ -260,10 +260,9 @@ async def create_custom_book(
     # シリーズ情報抽出
     series_title, volume_number = extract_series_info(title)
 
-    parsed_date = None
     if published_date:
         try:
-            parsed_date = date.fromisoformat(published_date)
+            date.fromisoformat(published_date)
         except ValueError:
             raise ValidationException("Invalid date format. Use YYYY-MM-DD.")
 
@@ -271,7 +270,7 @@ async def create_custom_book(
         title=title,
         authors=authors_list,
         publisher=publisher,
-        published_date=parsed_date,
+        published_date=published_date,
         isbn_10=isbn_10,
         isbn_13=isbn_13,
         description=description,
