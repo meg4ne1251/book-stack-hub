@@ -19,6 +19,7 @@ import type {
   UserBook,
   BookStatus,
   Review,
+  Tag,
   PaginatedResponse,
 } from "@/types/api";
 
@@ -55,6 +56,20 @@ export default function BookDetailPage() {
   const [reviewIsPublic, setReviewIsPublic] = useState(false);
   const [savingReview, setSavingReview] = useState(false);
 
+  // Tag state
+  const [allTags, setAllTags] = useState<Tag[]>([]);
+  const [showTagManager, setShowTagManager] = useState(false);
+  const [newTagName, setNewTagName] = useState("");
+
+  const fetchTags = async () => {
+    try {
+      const res = await apiClient.get<{ data: Tag[] }>("/me/tags");
+      setAllTags(res.data);
+    } catch {
+      // Error handling
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -67,6 +82,7 @@ export default function BookDetailPage() {
         ]);
         setBook(bookRes.data);
         setReviews(reviewsRes.data);
+        fetchTags();
 
         // Try to get user's book entry
         try {
@@ -170,6 +186,68 @@ export default function BookDetailPage() {
       }
     } finally {
       setSavingReview(false);
+    }
+  };
+
+  const handleCreateTag = async () => {
+    if (!newTagName.trim()) return;
+    try {
+      const res = await apiClient.post<{ data: Tag }>("/me/tags", {
+        name: newTagName.trim(),
+      });
+      setAllTags((prev) => [...prev, res.data]);
+      setNewTagName("");
+    } catch (err) {
+      if (err instanceof ApiRequestError) {
+        setError(err.message);
+      }
+    }
+  };
+
+  const handleAddTag = async (tagId: string) => {
+    if (!userBook) return;
+    try {
+      await apiClient.post(`/me/books/${userBook.id}/tags`, {
+        tag_id: tagId,
+      });
+      // Refresh user book data
+      const myBooksRes = await apiClient.get<PaginatedResponse<UserBook>>(
+        `/me/books?book_id=${bookId}`
+      );
+      if (myBooksRes.data.length > 0) {
+        setUserBook(myBooksRes.data[0]);
+      }
+    } catch {
+      // Tag might already be added
+    }
+  };
+
+  const handleRemoveTag = async (tagId: string) => {
+    if (!userBook) return;
+    try {
+      await apiClient.delete(`/me/books/${userBook.id}/tags/${tagId}`);
+      setUserBook({
+        ...userBook,
+        tags: userBook.tags.filter((t) => t.id !== tagId),
+      });
+    } catch {
+      // Error handling
+    }
+  };
+
+  const handleDeleteTag = async (tagId: string) => {
+    if (!confirm("このタグを削除しますか？すべての書籍からこのタグが外れます。")) return;
+    try {
+      await apiClient.delete(`/me/tags/${tagId}`);
+      setAllTags((prev) => prev.filter((t) => t.id !== tagId));
+      if (userBook) {
+        setUserBook({
+          ...userBook,
+          tags: userBook.tags.filter((t) => t.id !== tagId),
+        });
+      }
+    } catch {
+      // Error handling
     }
   };
 
@@ -311,15 +389,21 @@ export default function BookDetailPage() {
                   </Button>
                 </div>
               </div>
-              {userBook.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {userBook.tags.map((tag) => (
-                    <Badge key={tag.id} variant="outline" className="text-xs">
-                      {tag.name}
-                    </Badge>
-                  ))}
-                </div>
-              )}
+              <div className="flex flex-wrap items-center gap-1">
+                {userBook.tags.map((tag) => (
+                  <Badge key={tag.id} variant="outline" className="text-xs">
+                    {tag.name}
+                  </Badge>
+                ))}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-xs text-stone-400 h-6 px-2"
+                  onClick={() => setShowTagManager(true)}
+                >
+                  + タグ管理
+                </Button>
+              </div>
             </div>
           )}
         </div>
@@ -500,6 +584,103 @@ export default function BookDetailPage() {
                 disabled={savingReview || !reviewTitle || !reviewBody}
               >
                 {savingReview ? "投稿中..." : "投稿する"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Tag Manager Dialog */}
+      <Dialog open={showTagManager} onOpenChange={setShowTagManager}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>タグ管理</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Create new tag */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">新しいタグを作成</label>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleCreateTag();
+                }}
+                className="flex gap-2"
+              >
+                <Input
+                  value={newTagName}
+                  onChange={(e) => setNewTagName(e.target.value)}
+                  placeholder="タグ名（最大30文字）"
+                  maxLength={30}
+                  className="flex-1"
+                />
+                <Button type="submit" disabled={!newTagName.trim()}>
+                  作成
+                </Button>
+              </form>
+            </div>
+
+            {/* Available tags */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">タグ一覧</label>
+              {allTags.length === 0 ? (
+                <p className="text-xs text-stone-400">
+                  タグがまだありません。上から作成してください。
+                </p>
+              ) : (
+                <div className="max-h-48 overflow-y-auto space-y-1">
+                  {allTags.map((tag) => {
+                    const isAttached = userBook?.tags.some(
+                      (t) => t.id === tag.id
+                    );
+                    return (
+                      <div
+                        key={tag.id}
+                        className="flex items-center justify-between p-2 border border-stone-200 rounded text-sm"
+                      >
+                        <span>{tag.name}</span>
+                        <div className="flex gap-1">
+                          {isAttached ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-xs h-7"
+                              onClick={() => handleRemoveTag(tag.id)}
+                            >
+                              外す
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-xs h-7"
+                              onClick={() => handleAddTag(tag.id)}
+                            >
+                              付ける
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-xs h-7 text-red-600"
+                            onClick={() => handleDeleteTag(tag.id)}
+                          >
+                            削除
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end">
+              <Button
+                variant="outline"
+                onClick={() => setShowTagManager(false)}
+              >
+                閉じる
               </Button>
             </div>
           </div>

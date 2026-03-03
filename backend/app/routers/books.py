@@ -37,6 +37,10 @@ def _book_to_response(book: Book) -> dict:
     """Bookモデルをレスポンスdictに変換（署名付きURL付き）"""
     cover_url = book.cover_image_url
 
+    # ローカル保存の画像（カスタム書籍など）は署名付きURLに変換
+    if cover_url and not cover_url.startswith(("http://", "https://")):
+        cover_url = generate_signed_url(cover_url)
+
     return {
         "id": str(book.id),
         "isbn_10": book.isbn_10,

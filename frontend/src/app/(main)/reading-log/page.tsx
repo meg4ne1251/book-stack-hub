@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select } from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -32,6 +31,7 @@ export default function ReadingLogPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingLog, setEditingLog] = useState<ReadingLog | null>(null);
   const [formBookId, setFormBookId] = useState("");
+  const [formBookFilter, setFormBookFilter] = useState("");
   const [formDate, setFormDate] = useState(
     new Date().toISOString().split("T")[0]
   );
@@ -52,7 +52,7 @@ export default function ReadingLogPage() {
           `/me/reading-logs/heatmap?year=${new Date().getFullYear()}`
         ),
         apiClient.get<PaginatedResponse<UserBook>>(
-          `/me/books?status=reading&per_page=50`
+          `/me/books?per_page=50`
         ),
       ]);
       setLogs(logsRes.data);
@@ -70,9 +70,20 @@ export default function ReadingLogPage() {
     fetchData();
   }, [fetchData]);
 
+  const filteredBooks = useMemo(() => {
+    if (!formBookFilter.trim()) return readingBooks;
+    const q = formBookFilter.toLowerCase();
+    return readingBooks.filter(
+      (ub) =>
+        ub.book.title.toLowerCase().includes(q) ||
+        ub.book.authors?.some((a) => a.toLowerCase().includes(q))
+    );
+  }, [readingBooks, formBookFilter]);
+
   const openNewForm = () => {
     setEditingLog(null);
     setFormBookId(readingBooks[0]?.book?.id || "");
+    setFormBookFilter("");
     setFormDate(new Date().toISOString().split("T")[0]);
     setFormPages("");
     setFormMinutes("");
@@ -179,6 +190,14 @@ export default function ReadingLogPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-[13px] font-medium text-stone-700">
                       {log.read_date}
+                      {(() => {
+                        const ub = readingBooks.find((b) => b.book.id === log.book_id);
+                        return ub ? (
+                          <span className="ml-2 text-xs text-stone-400 font-normal">
+                            {ub.book.title}
+                          </span>
+                        ) : null;
+                      })()}
                     </p>
                     <div className="flex gap-3 text-xs text-stone-400 mt-0.5">
                       {log.pages_read && <span>{log.pages_read}ページ</span>}
@@ -250,18 +269,49 @@ export default function ReadingLogPage() {
           <div className="space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">対象書籍 *</label>
-              <Select
-                value={formBookId}
-                onChange={(e) => setFormBookId(e.target.value)}
-                required
-              >
-                <option value="">選択してください</option>
-                {readingBooks.map((ub) => (
-                  <option key={ub.book.id} value={ub.book.id}>
-                    {ub.book.title}
-                  </option>
-                ))}
-              </Select>
+              <Input
+                value={formBookFilter}
+                onChange={(e) => setFormBookFilter(e.target.value)}
+                placeholder="書籍名で絞り込み..."
+                className="mb-2"
+              />
+              <div className="max-h-40 overflow-y-auto border border-stone-200 rounded">
+                {filteredBooks.length === 0 ? (
+                  <p className="text-xs text-stone-400 p-3 text-center">
+                    該当する書籍がありません
+                  </p>
+                ) : (
+                  filteredBooks.map((ub) => (
+                    <div
+                      key={ub.book.id}
+                      className={`flex items-center gap-2 px-3 py-2 cursor-pointer text-sm hover:bg-stone-50 ${
+                        formBookId === ub.book.id
+                          ? "bg-amber-50 border-l-2 border-amber-600"
+                          : ""
+                      }`}
+                      onClick={() => setFormBookId(ub.book.id)}
+                    >
+                      <div className="w-6 h-9 flex-shrink-0 bg-stone-100 rounded overflow-hidden">
+                        {ub.book.cover_image_url ? (
+                          <img
+                            src={ub.book.cover_image_url}
+                            alt=""
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-stone-100" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="truncate">{ub.book.title}</p>
+                        <p className="text-xs text-stone-400 truncate">
+                          {ub.book.authors?.join(", ")}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
 
             <div className="space-y-2">

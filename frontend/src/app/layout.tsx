@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Noto_Sans_JP, Noto_Serif_JP } from "next/font/google";
 import { AuthProvider } from "@/components/providers/auth-provider";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 const notoSans = Noto_Sans_JP({
@@ -54,6 +55,7 @@ export default function RootLayout({
     <html lang="ja" suppressHydrationWarning>
       <body className={`${notoSans.variable} ${notoSerif.variable} font-sans antialiased`}>
         <AuthProvider>{children}</AuthProvider>
+        <Toaster position="top-right" richColors />
       </body>
     </html>
   );

@@ -23,9 +23,12 @@ async def get_stats_overview(
     current_year = now.year
     current_month = now.month
 
-    # Total books in shelf
+    # Total books in shelf (exclude want_to_read)
     total_books = await db.scalar(
-        select(func.count(UserBook.id)).where(UserBook.user_id == current_user.id)
+        select(func.count(UserBook.id)).where(
+            UserBook.user_id == current_user.id,
+            UserBook.status != "want_to_read",
+        )
     )
 
     # Books finished this month

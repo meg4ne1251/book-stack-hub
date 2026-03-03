@@ -14,7 +14,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { apiClient, ApiRequestError } from "@/lib/api-client";
-import type { Playlist, Book, PaginatedResponse } from "@/types/api";
+import { toast } from "sonner";
+import type { Playlist, Book, UserBook, PaginatedResponse } from "@/types/api";
 
 export default function PlaylistDetailPage() {
   const params = useParams();
@@ -24,6 +25,7 @@ export default function PlaylistDetailPage() {
   const [playlist, setPlaylist] = useState<Playlist | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   // Edit state
   const [editing, setEditing] = useState(false);
@@ -36,6 +38,8 @@ export default function PlaylistDetailPage() {
   const [showAddBook, setShowAddBook] = useState(false);
   const [bookSearchQuery, setBookSearchQuery] = useState("");
   const [bookSearchResults, setBookSearchResults] = useState<Book[]>([]);
+  const [allShelfBooks, setAllShelfBooks] = useState<Book[]>([]);
+  const [loadingShelfBooks, setLoadingShelfBooks] = useState(false);
   const [searching, setSearching] = useState(false);
 
   const fetchPlaylist = async () => {
@@ -80,8 +84,33 @@ export default function PlaylistDetailPage() {
     }
   };
 
+  const fetchShelfBooks = async () => {
+    setLoadingShelfBooks(true);
+    try {
+      const res = await apiClient.get<PaginatedResponse<UserBook>>(
+        "/me/books?per_page=50"
+      );
+      setAllShelfBooks(res.data.map((ub) => ub.book));
+    } catch {
+      // Error handling
+    } finally {
+      setLoadingShelfBooks(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showAddBook) {
+      fetchShelfBooks();
+      setBookSearchQuery("");
+      setBookSearchResults([]);
+    }
+  }, [showAddBook]);
+
   const handleSearchBooks = async () => {
-    if (!bookSearchQuery.trim()) return;
+    if (!bookSearchQuery.trim()) {
+      setBookSearchResults([]);
+      return;
+    }
     setSearching(true);
     try {
       const params = new URLSearchParams({
@@ -105,13 +134,20 @@ export default function PlaylistDetailPage() {
       await apiClient.post(`/playlists/${playlistId}/items`, {
         book_id: bookId,
       });
+      toast.success("書籍をプレイリストに追加しました");
       setShowAddBook(false);
       setBookSearchQuery("");
       setBookSearchResults([]);
       fetchPlaylist();
     } catch (err) {
       if (err instanceof ApiRequestError) {
-        setError(err.message);
+        if (err.status === 400 || err.message.includes("already")) {
+          toast.error("この書籍はすでに追加されています");
+        } else {
+          toast.error(err.message);
+        }
+      } else {
+        toast.error("追加に失敗しました");
       }
     }
   };
@@ -123,6 +159,27 @@ export default function PlaylistDetailPage() {
       fetchPlaylist();
     } catch {
       // Error handling
+    }
+  };
+
+  const handleCopyShareUrl = async () => {
+    if (!playlist?.share_slug) return;
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+    const shareUrl = `${baseUrl}/share/${playlist.share_slug}`;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback for older browsers
+      const textArea = document.createElement("textarea");
+      textArea.value = shareUrl;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textArea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     }
   };
 
@@ -181,10 +238,15 @@ export default function PlaylistDetailPage() {
             <span className="text-sm text-muted-foreground">
               {playlist.items?.length || 0}冊
             </span>
-            {playlist.share_slug && (
-              <span className="text-xs text-muted-foreground">
-                共有URL: /share/{playlist.share_slug}
-              </span>
+            {playlist.is_public && playlist.share_slug && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleCopyShareUrl}
+                className="text-xs"
+              >
+                {copied ? "コピーしました!" : "共有URLをコピー"}
+              </Button>
             )}
           </div>
         </div>
@@ -332,32 +394,54 @@ export default function PlaylistDetailPage() {
               </Button>
             </form>
 
+            <p className="text-xs text-muted-foreground">
+              {bookSearchQuery.trim() ? "検索結果" : "本棚の書籍一覧"}（クリックで追加）
+            </p>
+
             <div className="max-h-64 overflow-y-auto space-y-2">
-              {bookSearchResults.map((book) => (
-                <div
-                  key={book.id}
-                  className="flex items-center gap-3 p-2 border border-border rounded hover:bg-accent/30 cursor-pointer"
-                  onClick={() => handleAddBook(book.id)}
-                >
-                  <div className="w-8 h-12 flex-shrink-0 bg-muted rounded overflow-hidden">
-                    {book.cover_image_url ? (
-                      <img
-                        src={book.cover_image_url}
-                        alt={book.title}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-muted" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{book.title}</p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {book.authors?.join(", ")}
-                    </p>
-                  </div>
+              {loadingShelfBooks ? (
+                <div className="space-y-2">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="h-14 bg-muted animate-pulse rounded" />
+                  ))}
                 </div>
-              ))}
+              ) : (bookSearchQuery.trim() ? bookSearchResults : allShelfBooks).length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  {bookSearchQuery.trim() ? "検索結果がありません" : "本棚に書籍がありません"}
+                </p>
+              ) : (
+                (bookSearchQuery.trim() ? bookSearchResults : allShelfBooks).map((book) => (
+                  <div
+                    key={book.id}
+                    className="flex items-center gap-3 p-2 border border-border rounded hover:bg-accent/30 cursor-pointer"
+                    onClick={() => handleAddBook(book.id)}
+                  >
+                    <div className="w-8 h-12 flex-shrink-0 bg-muted rounded overflow-hidden">
+                      {book.cover_image_url ? (
+                        <img
+                          src={book.cover_image_url}
+                          alt={book.title}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-muted" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{book.title}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {book.authors?.join(", ")}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <Button variant="outline" onClick={() => setShowAddBook(false)}>
+                閉じる
+              </Button>
             </div>
           </div>
         </DialogContent>

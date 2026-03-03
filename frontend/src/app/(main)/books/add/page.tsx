@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { Select } from "@/components/ui/select";
 import { apiClient, ApiRequestError } from "@/lib/api-client";
-import type { Book, BookStatus } from "@/types/api";
+import type { Book, BookStatus, Playlist, PaginatedResponse } from "@/types/api";
 
 const STATUS_OPTIONS: { value: BookStatus; label: string }[] = [
   { value: "want_to_read", label: "買いたい/読みたい" },
@@ -51,6 +51,19 @@ export default function BooksAddPage() {
   const [addStatus, setAddStatus] = useState<BookStatus>("want_to_read");
   const [addingBookId, setAddingBookId] = useState<string | null>(null);
   const [addError, setAddError] = useState<string | null>(null);
+
+  // Add to playlist
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [selectedPlaylistId, setSelectedPlaylistId] = useState("");
+  const [addToPlaylist, setAddToPlaylist] = useState(false);
+
+  // Fetch playlists for adding books directly
+  useEffect(() => {
+    apiClient
+      .get<PaginatedResponse<Playlist>>("/me/playlists?per_page=50")
+      .then((res) => setPlaylists(res.data))
+      .catch(() => {});
+  }, []);
 
   // Ref for search debounce
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -145,7 +158,21 @@ export default function BooksAddPage() {
         book_id: bookId,
         status: addStatus,
       });
+
+      // Also add to playlist if selected
+      if (addToPlaylist && selectedPlaylistId) {
+        try {
+          await apiClient.post(`/playlists/${selectedPlaylistId}/items`, {
+            book_id: bookId,
+          });
+        } catch {
+          // Silently handle playlist add errors (e.g., already in playlist)
+        }
+      }
+
       setSelectedBook(null);
+      setAddToPlaylist(false);
+      setSelectedPlaylistId("");
     } catch (err) {
       if (err instanceof ApiRequestError) {
         if (err.code === "ALREADY_EXISTS") {
@@ -416,6 +443,33 @@ export default function BooksAddPage() {
                   ))}
                 </Select>
               </div>
+
+              {playlists.length > 0 && (
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={addToPlaylist}
+                      onChange={(e) => setAddToPlaylist(e.target.checked)}
+                      className="rounded"
+                    />
+                    プレイリストにも追加する
+                  </label>
+                  {addToPlaylist && (
+                    <Select
+                      value={selectedPlaylistId}
+                      onChange={(e) => setSelectedPlaylistId(e.target.value)}
+                    >
+                      <option value="">プレイリストを選択...</option>
+                      {playlists.map((pl) => (
+                        <option key={pl.id} value={pl.id}>
+                          {pl.title}
+                        </option>
+                      ))}
+                    </Select>
+                  )}
+                </div>
+              )}
 
               {addError && (
                 <p className="text-sm text-red-600">{addError}</p>

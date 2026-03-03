@@ -18,6 +18,7 @@ export default function BookshelfPage() {
   const [books, setBooks] = useState<UserBook[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
+  const [customOnly, setCustomOnly] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -30,6 +31,7 @@ export default function BookshelfPage() {
         params.set("page", page.toString());
         params.set("per_page", "24");
         if (activeFilter) params.set("status", activeFilter);
+        if (customOnly) params.set("is_custom", "true");
         const res = await apiClient.get<PaginatedResponse<UserBook>>(
           `/me/books?${params.toString()}`
         );
@@ -42,7 +44,7 @@ export default function BookshelfPage() {
       }
     };
     fetchBooks();
-  }, [activeFilter, page]);
+  }, [activeFilter, customOnly, page]);
 
   // Reset to page 1 when filter changes
   const handleFilterChange = (filter: string | null) => {
@@ -75,22 +77,29 @@ export default function BookshelfPage() {
       {/* Status filters */}
       <div className="flex flex-wrap gap-2">
         <Button
-          variant={activeFilter === null ? "default" : "outline"}
+          variant={activeFilter === null && !customOnly ? "default" : "outline"}
           size="sm"
-          onClick={() => handleFilterChange(null)}
+          onClick={() => { handleFilterChange(null); setCustomOnly(false); }}
         >
           すべて
         </Button>
         {Object.entries(STATUS_LABELS).map(([status, label]) => (
           <Button
             key={status}
-            variant={activeFilter === status ? "default" : "outline"}
+            variant={activeFilter === status && !customOnly ? "default" : "outline"}
             size="sm"
-            onClick={() => handleFilterChange(status)}
+            onClick={() => { handleFilterChange(status); setCustomOnly(false); }}
           >
             {label}
           </Button>
         ))}
+        <Button
+          variant={customOnly ? "default" : "outline"}
+          size="sm"
+          onClick={() => { setCustomOnly(!customOnly); setActiveFilter(null); setPage(1); }}
+        >
+          手動追加
+        </Button>
       </div>
 
       {/* Book list */}

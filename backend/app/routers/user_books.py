@@ -7,7 +7,10 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from app.dependencies import CurrentUser, DBSession
+from pydantic import BaseModel
+
 from app.models.book import Book
+from app.models.tag import Tag
 from app.models.user_book import UserBook
 from app.routers.books import _book_to_response
 from app.schemas.user_book import UserBookCreate, UserBookUpdate
@@ -51,6 +54,8 @@ async def list_my_books(
     current_user: CurrentUser,
     db: DBSession,
     status: str | None = Query(default=None),
+    is_custom: bool | None = Query(default=None),
+    book_id: str | None = Query(default=None),
     sort: str = Query(default="created_at_desc"),
     page: int = Query(default=1, ge=1),
     per_page: int = Query(default=20, ge=1, le=50),
@@ -70,6 +75,18 @@ async def list_my_books(
             raise ValidationException(f"Invalid status: {status}")
         base_q = base_q.where(UserBook.status == status)
         count_q = count_q.where(UserBook.status == status)
+
+    if is_custom is not None:
+        base_q = base_q.join(Book).where(Book.is_custom == is_custom)
+        count_q = count_q.join(Book).where(Book.is_custom == is_custom)
+
+    if book_id:
+        try:
+            book_uuid = uuid.UUID(book_id)
+        except ValueError:
+            raise ValidationException("Invalid book_id format")
+        base_q = base_q.where(UserBook.book_id == book_uuid)
+        count_q = count_q.where(UserBook.book_id == book_uuid)
 
     # Sort
     sort_map = {
@@ -193,3 +210,69 @@ async def remove_book_from_shelf(
         raise NotFoundException("UserBook not found")
 
     await db.delete(user_book)
+
+
+class TagAttach(BaseModel):
+    tag_id: str
+
+
+@router.post("/{user_book_id}/tags")
+async def add_tag_to_book(
+    user_book_id: uuid.UUID,
+    body: TagAttach,
+    current_user: CurrentUser,
+    db: DBSession,
+):
+    """書籍にタグを付与"""
+    result = await db.execute(
+        select(UserBook)
+        .where(UserBook.id == user_book_id, UserBook.user_id == current_user.id)
+        .options(selectinload(UserBook.tags))
+    )
+    user_book = result.scalar_one_or_none()
+    if not user_book:
+        raise NotFoundException("UserBook not found")
+
+    tag_id = uuid.UUID(body.tag_id)
+    result = await db.execute(
+        select(Tag).where(Tag.id == tag_id, Tag.user_id == current_user.id)
+    )
+    tag = result.scalar_one_or_none()
+    if not tag:
+        raise NotFoundException("Tag not found")
+
+    # Check if already attached
+    if tag in user_book.tags:
+        raise AlreadyExistsException("Tag already attached")
+
+    user_book.tags.append(tag)
+    return {"data": {"id": str(tag.id), "name": tag.name}}
+
+
+@router.delete("/{user_book_id}/tags/{tag_id}", status_code=204)
+async def remove_tag_from_book(
+    user_book_id: uuid.UUID,
+    tag_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
+):
+    """書籍からタグを取り外す"""
+    result = await db.execute(
+        select(UserBook)
+        .where(UserBook.id == user_book_id, UserBook.user_id == current_user.id)
+        .options(selectinload(UserBook.tags))
+    )
+    user_book = result.scalar_one_or_none()
+    if not user_book:
+        raise NotFoundException("UserBook not found")
+
+    tag_to_remove = None
+    for tag in user_book.tags:
+        if tag.id == tag_id:
+            tag_to_remove = tag
+            break
+
+    if not tag_to_remove:
+        raise NotFoundException("Tag not found on this book")
+
+    user_book.tags.remove(tag_to_remove)

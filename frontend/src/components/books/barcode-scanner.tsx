@@ -18,12 +18,22 @@ export function BarcodeScanner({
   const html5QrCodeRef = useRef<unknown>(null);
   const [error, setError] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(true);
+  const lastScannedRef = useRef<string>("");
+  const lastScanTimeRef = useRef<number>(0);
 
   const handleScan = useCallback(
     (decodedText: string) => {
       // EAN-13 ISBNs start with 978 or 979
       const cleaned = decodedText.replace(/[^0-9]/g, "");
       if (cleaned.length === 13 && (cleaned.startsWith("978") || cleaned.startsWith("979"))) {
+        const now = Date.now();
+        // Debounce: ignore same ISBN within 3 seconds
+        if (cleaned === lastScannedRef.current && now - lastScanTimeRef.current < 3000) {
+          return;
+        }
+        lastScannedRef.current = cleaned;
+        lastScanTimeRef.current = now;
+
         onScan(cleaned);
         if (!continuousMode) {
           // Stop scanner in single mode
