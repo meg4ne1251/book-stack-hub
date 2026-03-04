@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { Select } from "@/components/ui/select";
 import { apiClient, ApiRequestError } from "@/lib/api-client";
+import { toast } from "sonner";
 import type { Book, BookStatus, Playlist, PaginatedResponse } from "@/types/api";
 
 const STATUS_OPTIONS: { value: BookStatus; label: string }[] = [
@@ -228,9 +229,12 @@ export default function BooksAddPage() {
               if (navigator.vibrate) {
                 navigator.vibrate(100);
               }
-            } catch {
-              // Already exists or other error, still add to display
-              setScannedBooks((prev) => [book, ...prev]);
+            } catch (err) {
+              if (err instanceof ApiRequestError && err.code === "ALREADY_EXISTS") {
+                toast.info(`「${book.title}」は既に本棚に登録済みです`);
+              } else {
+                toast.error("本棚への追加に失敗しました");
+              }
             }
           }
         } catch {
@@ -244,7 +248,7 @@ export default function BooksAddPage() {
         performSearch(isbn, "all");
       }
     },
-    [continuousMode, performSearch]
+    [continuousMode, continuousModeStatus, performSearch]
   );
 
   const handleCustomBookSuccess = () => {
