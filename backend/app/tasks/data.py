@@ -4,7 +4,7 @@ import csv
 import io
 import json
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 
 from app.tasks.celery_app import celery_app
 
@@ -70,7 +70,7 @@ def process_export(
     export_dir = "/data/exports"
     os.makedirs(export_dir, exist_ok=True)
 
-    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     filename = f"{export_dir}/{user_id}_{timestamp}.{format_type}"
 
     # TODO: Query user's books, reading logs, reviews

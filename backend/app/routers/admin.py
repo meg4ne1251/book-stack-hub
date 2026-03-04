@@ -76,9 +76,12 @@ async def list_users(
     count_query = select(func.count(User.id))
 
     if q:
-        filter_cond = User.username.ilike(f"%{q}%") | User.email.ilike(
-            f"%{q}%"
-        ) | User.display_name.ilike(f"%{q}%")
+        escaped_q = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        filter_cond = (
+            User.username.ilike(f"%{escaped_q}%", escape="\\")
+            | User.email.ilike(f"%{escaped_q}%", escape="\\")
+            | User.display_name.ilike(f"%{escaped_q}%", escape="\\")
+        )
         query = query.where(filter_cond)
         count_query = count_query.where(filter_cond)
 
@@ -115,8 +118,12 @@ async def update_user(
     db: DBSession,
 ):
     """ユーザー状態変更"""
+    try:
+        parsed_id = uuid.UUID(user_id)
+    except ValueError:
+        raise NotFoundException("User not found")
     result = await db.execute(
-        select(User).where(User.id == uuid.UUID(user_id))
+        select(User).where(User.id == parsed_id)
     )
     user = result.scalar_one_or_none()
     if not user:
@@ -147,8 +154,12 @@ async def delete_user(
     db: DBSession,
 ):
     """ユーザー削除（論理削除）"""
+    try:
+        parsed_id = uuid.UUID(user_id)
+    except ValueError:
+        raise NotFoundException("User not found")
     result = await db.execute(
-        select(User).where(User.id == uuid.UUID(user_id))
+        select(User).where(User.id == parsed_id)
     )
     user = result.scalar_one_or_none()
     if not user:
@@ -203,8 +214,12 @@ async def update_review_visibility(
     db: DBSession,
 ):
     """レビュー非公開化"""
+    try:
+        parsed_id = uuid.UUID(review_id)
+    except ValueError:
+        raise NotFoundException("Review not found")
     result = await db.execute(
-        select(Review).where(Review.id == uuid.UUID(review_id))
+        select(Review).where(Review.id == parsed_id)
     )
     review = result.scalar_one_or_none()
     if not review:
@@ -262,8 +277,12 @@ async def update_playlist_visibility(
     db: DBSession,
 ):
     """プレイリスト非公開化"""
+    try:
+        parsed_id = uuid.UUID(playlist_id)
+    except ValueError:
+        raise NotFoundException("Playlist not found")
     result = await db.execute(
-        select(Playlist).where(Playlist.id == uuid.UUID(playlist_id))
+        select(Playlist).where(Playlist.id == parsed_id)
     )
     playlist = result.scalar_one_or_none()
     if not playlist:

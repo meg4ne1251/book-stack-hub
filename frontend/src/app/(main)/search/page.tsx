@@ -13,19 +13,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { apiClient, ApiRequestError } from "@/lib/api-client";
-import type { Book, BookStatus } from "@/types/api";
-
-const STATUS_OPTIONS: { value: BookStatus; label: string }[] = [
-  { value: "want_to_read", label: "買いたい/読みたい" },
-  { value: "unread", label: "所有/未読" },
-  { value: "reading", label: "読書中" },
-  { value: "finished", label: "読了" },
-];
-
-interface BookSearchResponse {
-  data: Book[];
-  meta: { page: number; per_page: number; total: number; total_pages: number };
-}
+import { STATUS_OPTIONS } from "@/lib/constants";
+import { registerBookIfNeeded } from "@/lib/book-utils";
+import type { Book, BookStatus, PaginatedResponse } from "@/types/api";
 
 export default function SearchPage() {
   const router = useRouter();
@@ -66,7 +56,7 @@ export default function SearchPage() {
           page: "1",
           per_page: "20",
         });
-        const res = await apiClient.get<BookSearchResponse>(
+        const res = await apiClient.get<PaginatedResponse<Book>>(
           `/books/search?${params.toString()}`
         );
         setSearchResults(res.data);
@@ -96,7 +86,7 @@ export default function SearchPage() {
         page: nextPage.toString(),
         per_page: "20",
       });
-      const res = await apiClient.get<BookSearchResponse>(
+      const res = await apiClient.get<PaginatedResponse<Book>>(
         `/books/search?${params.toString()}`
       );
       setSearchResults((prev) => [...prev, ...res.data]);
@@ -127,27 +117,6 @@ export default function SearchPage() {
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     performSearch(searchQuery, searchSource);
-  };
-
-  const registerBookIfNeeded = async (book: Book): Promise<string> => {
-    if (book.id) return book.id;
-
-    const res = await apiClient.post<{ data: Book }>("/books/register", {
-      isbn_10: book.isbn_10,
-      isbn_13: book.isbn_13,
-      title: book.title,
-      subtitle: book.subtitle,
-      authors: book.authors,
-      publisher: book.publisher,
-      published_date: book.published_date,
-      description: book.description,
-      page_count: book.page_count,
-      cover_image_url: book.cover_image_url,
-      categories: book.categories,
-      language: book.language,
-      source: book.source,
-    });
-    return res.data.id;
   };
 
   const handleAddToShelf = (book: Book) => {

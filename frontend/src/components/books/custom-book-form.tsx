@@ -24,9 +24,17 @@ export function CustomBookForm({ onSuccess }: CustomBookFormProps) {
   const [pageCount, setPageCount] = useState("");
   const [coverImage, setCoverImage] = useState<File | null>(null);
 
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    if (coverImage && coverImage.size > MAX_FILE_SIZE) {
+      setError("画像ファイルは5MB以下にしてください");
+      return;
+    }
+
     setLoading(true);
 
     try {

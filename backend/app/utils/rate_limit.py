@@ -25,4 +25,4 @@ async def check_rate_limit(
     results = await pipe.execute()
     request_count = results[2]
 
-    return request_count <= max_requests
+    return request_count < max_requests

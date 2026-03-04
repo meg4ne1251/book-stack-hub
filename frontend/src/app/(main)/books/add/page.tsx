@@ -16,20 +16,10 @@ import {
 } from "@/components/ui/dialog";
 import { Select } from "@/components/ui/select";
 import { apiClient, ApiRequestError } from "@/lib/api-client";
+import { STATUS_OPTIONS } from "@/lib/constants";
+import { registerBookIfNeeded } from "@/lib/book-utils";
 import { toast } from "sonner";
 import type { Book, BookStatus, Playlist, PaginatedResponse } from "@/types/api";
-
-const STATUS_OPTIONS: { value: BookStatus; label: string }[] = [
-  { value: "want_to_read", label: "買いたい/読みたい" },
-  { value: "unread", label: "所有/未読" },
-  { value: "reading", label: "読書中" },
-  { value: "finished", label: "読了" },
-];
-
-interface BookSearchResponse {
-  data: Book[];
-  meta: { page: number; per_page: number; total: number; total_pages: number };
-}
 
 export default function BooksAddPage() {
   const router = useRouter();
@@ -81,7 +71,7 @@ export default function BooksAddPage() {
           source,
           per_page: "20",
         });
-        const res = await apiClient.get<BookSearchResponse>(
+        const res = await apiClient.get<PaginatedResponse<Book>>(
           `/books/search?${params.toString()}`
         );
         setSearchResults(res.data);
@@ -120,29 +110,6 @@ export default function BooksAddPage() {
     setSelectedBook(book);
     setAddStatus("want_to_read");
     setAddError(null);
-  };
-
-  const registerBookIfNeeded = async (book: Book): Promise<string> => {
-    // Internal books already have an id
-    if (book.id) return book.id;
-
-    // External search results need to be registered first
-    const res = await apiClient.post<{ data: Book }>("/books/register", {
-      isbn_10: book.isbn_10,
-      isbn_13: book.isbn_13,
-      title: book.title,
-      subtitle: book.subtitle,
-      authors: book.authors,
-      publisher: book.publisher,
-      published_date: book.published_date,
-      description: book.description,
-      page_count: book.page_count,
-      cover_image_url: book.cover_image_url,
-      categories: book.categories,
-      language: book.language,
-      source: book.source,
-    });
-    return res.data.id;
   };
 
   const confirmAddToShelf = async () => {
@@ -193,32 +160,13 @@ export default function BooksAddPage() {
         // In continuous mode, automatically add to shelf as "unread"
         try {
           const params = new URLSearchParams({ isbn, source: "all" });
-          const res = await apiClient.get<BookSearchResponse>(
+          const res = await apiClient.get<PaginatedResponse<Book>>(
             `/books/search?${params.toString()}`
           );
           if (res.data.length > 0) {
             const book = res.data[0];
             try {
-              // Register external book if needed, then add to shelf
-              let bookId = book.id;
-              if (!bookId) {
-                const regRes = await apiClient.post<{ data: Book }>("/books/register", {
-                  isbn_10: book.isbn_10,
-                  isbn_13: book.isbn_13,
-                  title: book.title,
-                  subtitle: book.subtitle,
-                  authors: book.authors,
-                  publisher: book.publisher,
-                  published_date: book.published_date,
-                  description: book.description,
-                  page_count: book.page_count,
-                  cover_image_url: book.cover_image_url,
-                  categories: book.categories,
-                  language: book.language,
-                  source: book.source,
-                });
-                bookId = regRes.data.id;
-              }
+              const bookId = await registerBookIfNeeded(book);
               await apiClient.post("/me/books", {
                 book_id: bookId,
                 status: continuousModeStatus,
@@ -385,8 +333,8 @@ export default function BooksAddPage() {
                   スキャン済み ({scannedBooks.length}冊)
                 </h3>
                 <div className="flex gap-3 overflow-x-auto pb-2">
-                  {scannedBooks.map((book, i) => (
-                    <div key={i} className="flex-shrink-0 w-16">
+                  {scannedBooks.map((book) => (
+                    <div key={book.id || `${book.isbn_13}-${book.title}`} className="flex-shrink-0 w-16">
                       <div className="aspect-[2/3] bg-stone-100 rounded overflow-hidden">
                         {book.cover_image_url ? (
                           <img

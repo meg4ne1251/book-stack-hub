@@ -233,7 +233,10 @@ async def add_tag_to_book(
     if not user_book:
         raise NotFoundException("UserBook not found")
 
-    tag_id = uuid.UUID(body.tag_id)
+    try:
+        tag_id = uuid.UUID(body.tag_id)
+    except ValueError:
+        raise ValidationException("Invalid tag_id format")
     result = await db.execute(
         select(Tag).where(Tag.id == tag_id, Tag.user_id == current_user.id)
     )
