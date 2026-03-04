@@ -144,7 +144,7 @@ export default function StatsPage() {
               <div key={status} className="text-center">
                 <p className="text-xl font-bold text-stone-800">{count}</p>
                 <p className="text-xs text-stone-400">
-                  {STATUS_LABELS[status] || status}
+                  {STATUS_LABELS[status as keyof typeof STATUS_LABELS] || status}
                 </p>
               </div>
             ))}
