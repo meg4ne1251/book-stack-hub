@@ -44,6 +44,7 @@ export default function BooksAddPage() {
   // Barcode scanner state
   const [showScanner, setShowScanner] = useState(false);
   const [continuousMode, setContinuousMode] = useState(false);
+  const [continuousModeStatus, setContinuousModeStatus] = useState<BookStatus>("unread");
   const [scannedBooks, setScannedBooks] = useState<Book[]>([]);
 
   // Add to shelf dialog
@@ -219,8 +220,8 @@ export default function BooksAddPage() {
               }
               await apiClient.post("/me/books", {
                 book_id: bookId,
-                status: "unread" as BookStatus,
-                is_owned: true,
+                status: continuousModeStatus,
+                is_owned: continuousModeStatus === "unread",
               });
               setScannedBooks((prev) => [book, ...prev]);
               // Vibration feedback
@@ -348,6 +349,22 @@ export default function BooksAddPage() {
                 </Button>
               )}
             </div>
+
+            {continuousMode && !showScanner && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">登録時のステータス</Label>
+                <Select
+                  value={continuousModeStatus}
+                  onChange={(e) => setContinuousModeStatus(e.target.value as BookStatus)}
+                >
+                  {STATUS_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            )}
 
             {showScanner && (
               <BarcodeScanner
