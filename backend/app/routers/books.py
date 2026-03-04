@@ -7,7 +7,7 @@ from fastapi import APIRouter, File, Form, Query, UploadFile
 
 from app.dependencies import CurrentUser, DBSession
 from app.models.book import Book
-from app.schemas.book import BookResponse, BookSearchResultResponse, CustomBookCreate
+from app.schemas.book import BookResponse, BookSearchResultResponse, CustomBookCreate, ExternalBookRegister
 from app.services.book_search import search_external, search_internal
 from app.services.image_service import (
     convert_and_save_image,
@@ -66,8 +66,8 @@ def _book_to_response(book: Book) -> dict:
 async def search_books(
     current_user: CurrentUser,
     db: DBSession,
-    q: str | None = Query(default=None, description="検索キーワード"),
-    isbn: str | None = Query(default=None, description="ISBN-10 or ISBN-13"),
+    q: str | None = Query(default=None, max_length=200, description="検索キーワード"),
+    isbn: str | None = Query(default=None, max_length=20, description="ISBN-10 or ISBN-13"),
     source: str = Query(default="all", description="internal|external|all"),
     page: int = Query(default=1, ge=1),
     per_page: int = Query(default=20, ge=1, le=40),
@@ -135,21 +135,18 @@ async def get_book(
 async def register_external_book(
     current_user: CurrentUser,
     db: DBSession,
-    body: dict,
+    body: ExternalBookRegister,
 ):
     """外部検索結果の書籍をマスターDBに登録する（既存ならそのまま返す）"""
     from sqlalchemy import select, or_
 
-    isbn_10 = body.get("isbn_10")
-    isbn_13 = body.get("isbn_13")
-
     # ISBN で既存チェック
-    if isbn_10 or isbn_13:
+    if body.isbn_10 or body.isbn_13:
         conditions = []
-        if isbn_13:
-            conditions.append(Book.isbn_13 == isbn_13)
-        if isbn_10:
-            conditions.append(Book.isbn_10 == isbn_10)
+        if body.isbn_13:
+            conditions.append(Book.isbn_13 == body.isbn_13)
+        if body.isbn_10:
+            conditions.append(Book.isbn_10 == body.isbn_10)
         result = await db.execute(
             select(Book).where(or_(*conditions), Book.is_custom.is_(False))
         )
@@ -158,34 +155,32 @@ async def register_external_book(
             return {"data": _book_to_response(existing)}
 
     # シリーズ情報抽出
-    title = body.get("title", "")
-    series_title, volume_number = extract_series_info(title)
+    series_title, volume_number = extract_series_info(body.title)
 
     # 表紙画像ダウンロード
     cover_path = None
-    cover_image_url = body.get("cover_image_url")
-    if cover_image_url:
+    if body.cover_image_url:
         try:
-            cover_path = download_and_convert_cover(cover_image_url)
+            cover_path = download_and_convert_cover(body.cover_image_url)
         except Exception:
-            logger.warning("Failed to download cover image: %s", cover_image_url)
+            logger.warning("Failed to download cover image: %s", body.cover_image_url)
 
     book = Book(
-        isbn_10=isbn_10,
-        isbn_13=isbn_13,
-        title=title,
-        subtitle=body.get("subtitle"),
+        isbn_10=body.isbn_10,
+        isbn_13=body.isbn_13,
+        title=body.title,
+        subtitle=body.subtitle,
         series_title=series_title,
         volume_number=volume_number,
-        authors=body.get("authors") or [],
-        publisher=body.get("publisher"),
-        published_date=body.get("published_date"),
-        description=body.get("description"),
-        page_count=body.get("page_count"),
-        cover_image_url=cover_image_url,
-        categories=body.get("categories") or [],
-        language=body.get("language"),
-        source=body.get("source", "external"),
+        authors=body.authors or [],
+        publisher=body.publisher,
+        published_date=body.published_date,
+        description=body.description,
+        page_count=body.page_count,
+        cover_image_url=body.cover_image_url,
+        categories=body.categories or [],
+        language=body.language,
+        source=body.source,
         is_custom=False,
     )
     db.add(book)

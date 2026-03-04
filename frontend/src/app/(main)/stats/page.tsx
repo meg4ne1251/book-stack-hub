@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ReadingHeatmap } from "@/components/reading-log/heatmap";
 import { apiClient } from "@/lib/api-client";
+import { STATUS_LABELS } from "@/lib/constants";
 import type { HeatmapData } from "@/types/api";
 
 interface StatsOverview {
@@ -16,14 +17,6 @@ interface StatsOverview {
   genre_distribution: { genre: string; count: number }[];
   monthly_spending: { month: string; amount: number }[];
 }
-
-const STATUS_LABELS: Record<string, string> = {
-  want_to_read: "買いたい/読みたい",
-  unread: "所有/未読",
-  reading: "読書中",
-  suspended: "中断",
-  finished: "読了",
-};
 
 export default function StatsPage() {
   const [stats, setStats] = useState<StatsOverview | null>(null);

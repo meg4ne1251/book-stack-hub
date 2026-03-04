@@ -3,16 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { apiClient } from "@/lib/api-client";
+import { STATUS_LABELS } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
-import type { PaginatedResponse, UserBook, BookStatus } from "@/types/api";
-
-const STATUS_LABELS: Record<BookStatus, string> = {
-  want_to_read: "買いたい/読みたい",
-  unread: "所有/未読",
-  reading: "読書中",
-  suspended: "中断",
-  finished: "読了",
-};
+import type { PaginatedResponse, UserBook } from "@/types/api";
 
 export default function BookshelfPage() {
   const [books, setBooks] = useState<UserBook[]>([]);

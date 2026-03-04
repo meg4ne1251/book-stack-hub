@@ -103,17 +103,20 @@ async def download_export(
         if not file_path or not os.path.isfile(file_path):
             raise NotFoundException("Export file not found")
 
-        # セキュリティ: ファイルがリクエストユーザーのものか検証（パストラバーサル防止）
-        base_name = os.path.basename(file_path)
+        # セキュリティ: パストラバーサル防止
+        # 1. パスを正規化してシンボリックリンク・相対パスを解決
+        resolved_path = os.path.realpath(file_path)
+        # 2. ファイル名がユーザーIDで始まることを検証
+        base_name = os.path.basename(resolved_path)
         if not base_name.startswith(str(current_user.id)):
             raise ForbiddenException("Not authorized to download this export")
 
         from fastapi.responses import FileResponse
 
         return FileResponse(
-            file_path,
+            resolved_path,
             media_type="application/octet-stream",
-            filename=os.path.basename(file_path),
+            filename=base_name,
         )
     else:
         return {"status": "failed", "progress": 0, "total": 0, "errors": [str(result.result)]}

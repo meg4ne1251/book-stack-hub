@@ -69,7 +69,7 @@ async def list_users(
     db: DBSession,
     page: int = Query(default=1, ge=1),
     per_page: int = Query(default=20, ge=1, le=50),
-    q: str | None = None,
+    q: str | None = Query(default=None, max_length=200),
 ):
     """ユーザー一覧"""
     query = select(User)

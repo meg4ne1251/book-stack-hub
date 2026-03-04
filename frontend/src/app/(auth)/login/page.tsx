@@ -31,7 +31,7 @@ export default function LoginPage() {
       });
 
       apiClient.setAccessToken(res.access_token);
-      setUser(res.user as any);
+      setUser(res.user);
       router.push("/dashboard");
     } catch (err) {
       if (err instanceof ApiRequestError) {

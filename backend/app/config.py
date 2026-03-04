@@ -1,4 +1,11 @@
+import logging
+import sys
+
 from pydantic_settings import BaseSettings
+
+_INSECURE_DEFAULT_KEY = "changeme_secret_key_at_least_32_bytes"
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -9,7 +16,7 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://redis:6379/0"
 
     # JWT
-    SECRET_KEY: str = "changeme_secret_key_at_least_32_bytes"
+    SECRET_KEY: str = _INSECURE_DEFAULT_KEY
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
 
@@ -58,3 +65,11 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# Fail-fast: 本番環境でデフォルトのシークレットキーを使用させない
+if not settings.DEV_MODE and settings.SECRET_KEY == _INSECURE_DEFAULT_KEY:
+    logger.critical(
+        "SECRET_KEY is set to the insecure default value. "
+        "Set a strong SECRET_KEY via environment variable or .env file."
+    )
+    sys.exit(1)

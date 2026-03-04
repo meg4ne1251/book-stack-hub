@@ -41,6 +41,36 @@ class BookSearchResultResponse(BaseModel):
     source_id: str | None = None
 
 
+class ExternalBookRegister(BaseModel):
+    """外部検索結果の書籍をマスターDBに登録するリクエスト"""
+    isbn_10: str | None = Field(default=None, max_length=20)
+    isbn_13: str | None = Field(default=None, max_length=20)
+    title: str = Field(max_length=500)
+    subtitle: str | None = Field(default=None, max_length=500)
+    authors: list[str] | None = None
+    publisher: str | None = Field(default=None, max_length=200)
+    published_date: str | None = Field(default=None, max_length=20)
+    description: str | None = Field(default=None, max_length=5000)
+    page_count: int | None = Field(default=None, ge=1, le=99999)
+    cover_image_url: str | None = Field(default=None, max_length=2000)
+    categories: list[str] | None = None
+    language: str | None = Field(default=None, max_length=10)
+    source: str = Field(default="external", max_length=50)
+    source_id: str | None = Field(default=None, max_length=100)
+
+    @field_validator("authors")
+    @classmethod
+    def validate_authors(cls, v: list[str] | None) -> list[str] | None:
+        if v is None:
+            return v
+        if len(v) > 20:
+            raise ValueError("Maximum 20 authors allowed")
+        for author in v:
+            if len(author) > 200:
+                raise ValueError("Each author name must be 200 characters or less")
+        return v
+
+
 class CustomBookCreate(BaseModel):
     title: str = Field(max_length=200)
     authors: list[str] = Field(default_factory=list)

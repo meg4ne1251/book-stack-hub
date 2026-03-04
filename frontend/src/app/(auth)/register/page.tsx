@@ -49,7 +49,7 @@ export default function RegisterPage() {
       });
 
       apiClient.setAccessToken(res.access_token);
-      setUser(res.user as any);
+      setUser(res.user);
       router.push("/dashboard");
     } catch (err) {
       if (err instanceof ApiRequestError) {
@@ -57,10 +57,11 @@ export default function RegisterPage() {
           setGlobalError(err.message);
         } else if (err.code === "VALIDATION_ERROR" && err.details.length > 0) {
           const fieldErrors: Record<string, string> = {};
-          for (const detail of err.details as any[]) {
-            if (detail.loc && detail.msg) {
-              const field = detail.loc[detail.loc.length - 1];
-              fieldErrors[field] = detail.msg;
+          for (const detail of err.details) {
+            const d = detail as { loc?: string[]; msg?: string };
+            if (d.loc && d.msg) {
+              const field = d.loc[d.loc.length - 1];
+              fieldErrors[field] = d.msg;
             }
           }
           setErrors(fieldErrors);

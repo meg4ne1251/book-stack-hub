@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { apiClient, ApiRequestError } from "@/lib/api-client";
+import { STATUS_LABELS } from "@/lib/constants";
 import type {
   Book,
   UserBook,
@@ -22,14 +23,6 @@ import type {
   Tag,
   PaginatedResponse,
 } from "@/types/api";
-
-const STATUS_LABELS: Record<BookStatus, string> = {
-  want_to_read: "買いたい/読みたい",
-  unread: "所有/未読",
-  reading: "読書中",
-  suspended: "中断",
-  finished: "読了",
-};
 
 export default function BookDetailPage() {
   const params = useParams();

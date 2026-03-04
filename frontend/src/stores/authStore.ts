@@ -1,16 +1,5 @@
 import { create } from "zustand";
-
-interface User {
-  id: string;
-  email: string;
-  username: string;
-  display_name: string;
-  avatar_url: string | null;
-  bio: string | null;
-  role: string;
-  locale: string;
-  is_profile_public: boolean;
-}
+import type { User } from "@/types/api";
 
 interface AuthState {
   user: User | null;

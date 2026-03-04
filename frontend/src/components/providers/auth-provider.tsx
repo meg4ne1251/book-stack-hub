@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useAuthStore } from "@/stores/authStore";
 import { apiClient } from "@/lib/api-client";
+import type { User } from "@/types/api";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { setUser } = useAuthStore();
@@ -17,7 +18,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         apiClient.setAccessToken(res.access_token);
 
         // Fetch user info
-        const user = await apiClient.get<any>("/auth/me");
+        const user = await apiClient.get<User>("/auth/me");
         setUser(user);
       } catch {
         // Not authenticated
