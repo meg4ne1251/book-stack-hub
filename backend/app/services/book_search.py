@@ -62,12 +62,14 @@ async def search_external(
     isbn: str | None = None,
     page: int = 1,
     per_page: int = 20,
-) -> list[BookSearchResult]:
+) -> tuple[list[BookSearchResult], int]:
     """
     外部APIで書籍を検索。
     キーワード検索: Google Books + 楽天を並行リクエスト
     ISBN検索: 楽天 → Google Booksの順
     全体タイムアウト: 10秒
+
+    Returns: (ページ分の結果リスト, マージ後の総件数)
     """
     try:
         if isbn:
@@ -76,18 +78,20 @@ async def search_external(
                 _search_isbn(isbn), timeout=10.0
             )
         else:
-            # キーワード検索: 並行リクエスト
+            # キーワード検索: 並行リクエスト（各APIから最大40件取得）
             results = await asyncio.wait_for(
-                _search_keyword(query, per_page), timeout=10.0
+                _search_keyword(query, max_results=40), timeout=10.0
             )
     except asyncio.TimeoutError:
         logger.warning("External search timeout (10s)")
         results = []
 
+    total = len(results)
+
     # ページネーション（外部APIの結果に対して）
     start = (page - 1) * per_page
     end = start + per_page
-    return results[start:end]
+    return results[start:end], total
 
 
 async def _search_isbn(isbn: str) -> list[BookSearchResult]:

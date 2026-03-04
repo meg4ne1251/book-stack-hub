@@ -74,21 +74,24 @@ async def search_books(
 ):
     """書籍検索（内部/外部/統合）"""
     results = []
+    total = 0
 
     if source in ("internal", "all"):
-        books, total = await search_internal(
+        books, internal_total = await search_internal(
             db, query=q, isbn=isbn, user_id=str(current_user.id),
             page=page, per_page=per_page,
         )
         internal_results = [_book_to_response(b) for b in books]
         if source == "internal":
-            return paginated_response(internal_results, page, per_page, total)
+            return paginated_response(internal_results, page, per_page, internal_total)
         results.extend(internal_results)
+        total += internal_total
 
     if source in ("external", "all"):
-        external_results = await search_external(
+        external_results, external_total = await search_external(
             query=q, isbn=isbn, page=page, per_page=per_page,
         )
+        total += external_total
         for r in external_results:
             results.append(BookSearchResultResponse(
                 isbn_10=r.isbn_10,
@@ -107,7 +110,7 @@ async def search_books(
                 source_id=r.source_id,
             ).model_dump())
 
-    return paginated_response(results, page, per_page, len(results))
+    return paginated_response(results, page, per_page, total)
 
 
 @router.get("/{book_id}")

@@ -38,6 +38,9 @@ export default function SearchPage() {
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalResults, setTotalResults] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   // Add to shelf dialog
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
@@ -53,17 +56,21 @@ export default function SearchPage() {
       setSearching(true);
       setSearchError(null);
       setHasSearched(true);
+      setPage(1);
+      setTotalResults(0);
 
       try {
         const params = new URLSearchParams({
           q: query.trim(),
           source,
+          page: "1",
           per_page: "20",
         });
         const res = await apiClient.get<BookSearchResponse>(
           `/books/search?${params.toString()}`
         );
         setSearchResults(res.data);
+        setTotalResults(res.meta.total);
       } catch (err) {
         if (err instanceof ApiRequestError) {
           setSearchError(err.message);
@@ -77,6 +84,33 @@ export default function SearchPage() {
     },
     []
   );
+
+  const loadMore = useCallback(async () => {
+    const nextPage = page + 1;
+    setLoadingMore(true);
+
+    try {
+      const params = new URLSearchParams({
+        q: searchQuery.trim(),
+        source: searchSource,
+        page: nextPage.toString(),
+        per_page: "20",
+      });
+      const res = await apiClient.get<BookSearchResponse>(
+        `/books/search?${params.toString()}`
+      );
+      setSearchResults((prev) => [...prev, ...res.data]);
+      setPage(nextPage);
+    } catch (err) {
+      if (err instanceof ApiRequestError) {
+        setSearchError(err.message);
+      } else {
+        setSearchError("追加の読み込みに失敗しました");
+      }
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [page, searchQuery, searchSource]);
 
   // Auto-search from URL query parameter
   const initialSearchDone = useRef(false);
@@ -223,7 +257,9 @@ export default function SearchPage() {
       {!searching && searchResults.length > 0 && (
         <div className="space-y-2">
           <p className="text-[13px] text-stone-500">
-            {searchResults.length}件の結果
+            {totalResults > searchResults.length
+              ? `${searchResults.length} / ${totalResults}件の結果`
+              : `${searchResults.length}件の結果`}
           </p>
           {searchResults.map((book) => (
             <div
@@ -306,6 +342,19 @@ export default function SearchPage() {
               </div>
             </div>
           ))}
+
+          {/* Load more button */}
+          {searchResults.length < totalResults && (
+            <div className="flex justify-center pt-2">
+              <Button
+                variant="outline"
+                onClick={loadMore}
+                disabled={loadingMore}
+              >
+                {loadingMore ? "読み込み中..." : "もっと見る"}
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
