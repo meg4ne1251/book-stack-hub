@@ -65,9 +65,6 @@ export default function BooksAddPage() {
       .catch(() => {});
   }, []);
 
-  // Ref for search debounce
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
   const performSearch = useCallback(
     async (query: string, source: string) => {
       if (!query.trim()) return;
@@ -242,6 +239,7 @@ export default function BooksAddPage() {
         // Single mode: search and show results
         setShowScanner(false);
         setSearchQuery(isbn);
+        setActiveTab("search");
         performSearch(isbn, "all");
       }
     },

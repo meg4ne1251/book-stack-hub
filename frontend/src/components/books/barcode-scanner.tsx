@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 
 interface BarcodeScannerProps {
@@ -20,9 +20,24 @@ export function BarcodeScanner({
   const [isStarting, setIsStarting] = useState(true);
   const lastScannedRef = useRef<string>("");
   const lastScanTimeRef = useRef<number>(0);
+  const isStoppedRef = useRef(false);
 
-  const handleScan = useCallback(
-    (decodedText: string) => {
+  // Use refs to avoid restarting the scanner when props change
+  const onScanRef = useRef(onScan);
+  const continuousModeRef = useRef(continuousMode);
+  useEffect(() => {
+    onScanRef.current = onScan;
+  }, [onScan]);
+  useEffect(() => {
+    continuousModeRef.current = continuousMode;
+  }, [continuousMode]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    isStoppedRef.current = false;
+
+    const handleScan = (decodedText: string) => {
       // EAN-13 ISBNs start with 978 or 979
       const cleaned = decodedText.replace(/[^0-9]/g, "");
       if (cleaned.length === 13 && (cleaned.startsWith("978") || cleaned.startsWith("979"))) {
@@ -34,21 +49,21 @@ export function BarcodeScanner({
         lastScannedRef.current = cleaned;
         lastScanTimeRef.current = now;
 
-        onScan(cleaned);
-        if (!continuousMode) {
+        onScanRef.current(cleaned);
+        if (!continuousModeRef.current && !isStoppedRef.current) {
           // Stop scanner in single mode
+          isStoppedRef.current = true;
           const scanner = html5QrCodeRef.current as { stop?: () => Promise<void> } | null;
           if (scanner && typeof scanner.stop === "function") {
-            scanner.stop().catch(() => {});
+            try {
+              scanner.stop().catch(() => {});
+            } catch {
+              // Scanner already stopped
+            }
           }
         }
       }
-    },
-    [onScan, continuousMode]
-  );
-
-  useEffect(() => {
-    let mounted = true;
+    };
 
     const startScanner = async () => {
       try {
@@ -93,12 +108,20 @@ export function BarcodeScanner({
 
     return () => {
       mounted = false;
-      const scanner = html5QrCodeRef.current as { stop?: () => Promise<void> } | null;
-      if (scanner && typeof scanner.stop === "function") {
-        scanner.stop().catch(() => {});
+      if (!isStoppedRef.current) {
+        isStoppedRef.current = true;
+        const scanner = html5QrCodeRef.current as { stop?: () => Promise<void> } | null;
+        if (scanner && typeof scanner.stop === "function") {
+          try {
+            scanner.stop().catch(() => {});
+          } catch {
+            // Scanner already stopped
+          }
+        }
       }
     };
-  }, [handleScan]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="space-y-4">
