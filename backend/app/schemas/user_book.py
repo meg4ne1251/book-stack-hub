@@ -18,7 +18,7 @@ class UserBookUpdate(BaseModel):
     rating: int | None = Field(default=None, ge=1, le=5)
     private_memo: str | None = Field(default=None, max_length=5000)
     is_owned: bool | None = None
-    purchase_price: int | None = None
+    purchase_price: int | None = Field(default=None, ge=0, le=9999999)
     started_reading_at: str | None = None
     finished_reading_at: str | None = None
 

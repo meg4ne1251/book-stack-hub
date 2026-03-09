@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { BookSearchResults } from "@/components/books/book-search-results";
 import { BarcodeScanner } from "@/components/books/barcode-scanner";
@@ -461,17 +462,5 @@ export default function BooksAddPage() {
         </DialogContent>
       </Dialog>
     </div>
-  );
-}
-
-function Label({
-  className,
-  ...props
-}: React.LabelHTMLAttributes<HTMLLabelElement>) {
-  return (
-    <label
-      className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${className || ""}`}
-      {...props}
-    />
   );
 }

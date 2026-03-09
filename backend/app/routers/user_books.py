@@ -14,8 +14,7 @@ from app.models.book import Book
 from app.models.tag import Tag
 from app.models.user_book import UserBook
 from app.schemas.user_book import UserBookCreate, UserBookUpdate
-from app.services.image_service import generate_signed_url
-from app.utils.response import book_to_response
+from app.utils.response import book_to_response, paginated_response
 from app.utils.exceptions import (
     AlreadyExistsException,
     CustomBookRestrictedException,
@@ -23,7 +22,6 @@ from app.utils.exceptions import (
     NotFoundException,
     ValidationException,
 )
-from app.utils.response import paginated_response
 
 router = APIRouter(prefix="/me/books", tags=["bookshelf"])
 

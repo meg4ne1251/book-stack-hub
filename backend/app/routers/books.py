@@ -7,7 +7,7 @@ from fastapi import APIRouter, File, Form, Query, UploadFile
 
 from app.dependencies import CurrentUser, DBSession
 from app.models.book import Book
-from app.schemas.book import BookResponse, BookSearchResultResponse, CustomBookCreate, ExternalBookRegister
+from app.schemas.book import ExternalBookRegister
 from app.services.book_search import search_external, search_internal
 from app.services.image_service import (
     convert_and_save_image,
@@ -31,9 +31,6 @@ router = APIRouter(prefix="/books", tags=["books"])
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB
 
-# 後方互換: 他ルーターからのインポート用エイリアス
-_book_to_response = book_to_response
-
 
 @router.get("/search")
 async def search_books(
@@ -54,7 +51,7 @@ async def search_books(
             db, query=q, isbn=isbn, user_id=str(current_user.id),
             page=page, per_page=per_page,
         )
-        internal_results = [_book_to_response(b) for b in books]
+        internal_results = [book_to_response(b) for b in books]
         if source == "internal":
             return paginated_response(internal_results, page, per_page, internal_total)
         results.extend(internal_results)
@@ -65,23 +62,8 @@ async def search_books(
             query=q, isbn=isbn, page=page, per_page=per_page,
         )
         total += external_total
-        for r in external_results:
-            results.append(BookSearchResultResponse(
-                isbn_10=r.isbn_10,
-                isbn_13=r.isbn_13,
-                title=r.title,
-                subtitle=r.subtitle,
-                authors=r.authors,
-                publisher=r.publisher,
-                published_date=r.published_date,
-                description=r.description,
-                page_count=r.page_count,
-                cover_image_url=r.cover_image_url,
-                categories=r.categories,
-                language=r.language,
-                source=r.source,
-                source_id=r.source_id,
-            ).model_dump())
+        from dataclasses import asdict
+        results.extend(asdict(r) for r in external_results)
 
     return paginated_response(results, page, per_page, total)
 
@@ -104,7 +86,7 @@ async def get_book(
     if book.is_custom and book.created_by != current_user.id:
         raise ForbiddenException("Cannot access this custom book")
 
-    return {"data": _book_to_response(book)}
+    return {"data": book_to_response(book)}
 
 
 @router.post("/register")
@@ -128,7 +110,7 @@ async def register_external_book(
         )
         existing = result.scalar_one_or_none()
         if existing:
-            return {"data": _book_to_response(existing)}
+            return {"data": book_to_response(existing)}
 
     # シリーズ情報抽出
     series_title, volume_number = extract_series_info(body.title)
@@ -162,7 +144,7 @@ async def register_external_book(
     db.add(book)
     await db.flush()
 
-    return {"data": _book_to_response(book)}
+    return {"data": book_to_response(book)}
 
 
 @router.post("/custom")
@@ -260,4 +242,4 @@ async def create_custom_book(
     db.add(book)
     await db.flush()
 
-    return {"data": _book_to_response(book)}
+    return {"data": book_to_response(book)}

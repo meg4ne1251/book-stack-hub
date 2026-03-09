@@ -145,12 +145,13 @@ async def search_internal(
             or_(Book.isbn_13 == isbn, Book.isbn_10 == isbn)
         )
     elif query:
-        # pg_trgm similarity search
-        like_pattern = f"%{query}%"
+        # pg_trgm similarity search (escape LIKE wildcards in user input)
+        escaped = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        like_pattern = f"%{escaped}%"
         conditions.append(
             or_(
-                Book.title.ilike(like_pattern),
-                Book.publisher.ilike(like_pattern),
+                Book.title.ilike(like_pattern, escape="\\"),
+                Book.publisher.ilike(like_pattern, escape="\\"),
                 Book.isbn_13 == query,
                 Book.isbn_10 == query,
             )

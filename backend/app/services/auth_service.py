@@ -1,4 +1,5 @@
 import hashlib
+import logging
 import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -21,6 +22,8 @@ from app.utils.exceptions import (
     ValidationException,
 )
 
+logger = logging.getLogger(__name__)
+
 ph = PasswordHasher(time_cost=3, memory_cost=65536, parallelism=4)
 
 
@@ -36,11 +39,12 @@ def verify_password(password: str, password_hash: str) -> bool:
 
 
 def create_access_token(user_id: uuid.UUID, role: str) -> str:
+    now = datetime.now(UTC)
     payload = {
         "sub": str(user_id),
         "role": role,
-        "exp": datetime.now(UTC) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
-        "iat": datetime.now(UTC),
+        "exp": now + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+        "iat": now,
         "type": "access",
     }
     return jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
@@ -106,17 +110,21 @@ async def verify_turnstile(token: str) -> bool:
     if settings.DEV_MODE and not settings.TURNSTILE_SECRET_KEY:
         return True
 
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-            data={
-                "secret": settings.TURNSTILE_SECRET_KEY,
-                "response": token,
-            },
-            timeout=5.0,
-        )
-        result = response.json()
-        return result.get("success", False)
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+                data={
+                    "secret": settings.TURNSTILE_SECRET_KEY,
+                    "response": token,
+                },
+                timeout=5.0,
+            )
+            result = response.json()
+            return result.get("success", False)
+    except httpx.HTTPError:
+        logger.error("Turnstile verification failed due to network error")
+        return False
 
 
 async def register_user(
