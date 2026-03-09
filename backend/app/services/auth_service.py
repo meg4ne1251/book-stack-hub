@@ -16,6 +16,7 @@ from app.models.user import User
 from app.utils.exceptions import (
     AlreadyExistsException,
     InvalidCredentialsException,
+    TokenExpiredException,
     UnauthorizedException,
     ValidationException,
 )
@@ -52,7 +53,6 @@ def decode_access_token(token: str) -> dict:
             raise UnauthorizedException("Invalid token type")
         return payload
     except jwt.ExpiredSignatureError:
-        from app.utils.exceptions import TokenExpiredException
         raise TokenExpiredException()
     except jwt.InvalidTokenError:
         raise UnauthorizedException("Invalid token")
@@ -129,12 +129,12 @@ async def register_user(
     # Check email uniqueness
     result = await db.execute(select(User).where(User.email == email))
     if result.scalar_one_or_none():
-        raise AlreadyExistsException("このメールアドレスは既に登録されています")
+        raise AlreadyExistsException("Email address is already registered")
 
     # Check username uniqueness
     result = await db.execute(select(User).where(User.username == username))
     if result.scalar_one_or_none():
-        raise AlreadyExistsException("このユーザー名は既に使用されています")
+        raise AlreadyExistsException("Username is already taken")
 
     user = User(
         email=email,

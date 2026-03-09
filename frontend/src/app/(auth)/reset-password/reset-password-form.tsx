@@ -26,7 +26,8 @@ export default function ResetPasswordForm() {
     }
     const verifyToken = async () => {
       try {
-        await apiClient.get(`/auth/verify-reset-token?token=${token}`);
+        const params = new URLSearchParams({ token });
+        await apiClient.get(`/auth/verify-reset-token?${params.toString()}`);
         setTokenValid(true);
       } catch {
         setTokenValid(false);

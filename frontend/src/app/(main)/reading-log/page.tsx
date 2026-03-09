@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { ReadingHeatmap } from "@/components/reading-log/heatmap";
 import { apiClient, ApiRequestError } from "@/lib/api-client";
+import { toast } from "sonner";
 import type {
   ReadingLog,
   HeatmapData,
@@ -60,7 +61,7 @@ export default function ReadingLogPage() {
       setHeatmapData(heatmapRes.data);
       setReadingBooks(booksRes.data);
     } catch {
-      // Error handling
+      toast.error("読書ログの読み込みに失敗しました");
     } finally {
       setLoading(false);
     }
@@ -141,7 +142,7 @@ export default function ReadingLogPage() {
       await apiClient.delete(`/me/reading-logs/${logId}`);
       fetchData();
     } catch {
-      // Error handling
+      toast.error("読書ログの削除に失敗しました");
     }
   };
 

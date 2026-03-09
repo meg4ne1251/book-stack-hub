@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 
+const SCAN_DEBOUNCE_MS = 3000;
+
 interface BarcodeScannerProps {
   onScan: (isbn: string) => void;
   onClose: () => void;
@@ -43,7 +45,7 @@ export function BarcodeScanner({
       if (cleaned.length === 13 && (cleaned.startsWith("978") || cleaned.startsWith("979"))) {
         const now = Date.now();
         // Debounce: ignore same ISBN within 3 seconds
-        if (cleaned === lastScannedRef.current && now - lastScanTimeRef.current < 3000) {
+        if (cleaned === lastScannedRef.current && now - lastScanTimeRef.current < SCAN_DEBOUNCE_MS) {
           return;
         }
         lastScannedRef.current = cleaned;

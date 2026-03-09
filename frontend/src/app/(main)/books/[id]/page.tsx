@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { apiClient, ApiRequestError } from "@/lib/api-client";
+import { toast } from "sonner";
 import { STATUS_LABELS } from "@/lib/constants";
 import type {
   Book,
@@ -59,7 +60,7 @@ export default function BookDetailPage() {
       const res = await apiClient.get<{ data: Tag[] }>("/me/tags");
       setAllTags(res.data);
     } catch {
-      // Error handling
+      toast.error("タグの取得に失敗しました");
     }
   };
 
@@ -211,7 +212,7 @@ export default function BookDetailPage() {
         setUserBook(myBooksRes.data[0]);
       }
     } catch {
-      // Tag might already be added
+      toast.error("タグの追加に失敗しました");
     }
   };
 
@@ -224,7 +225,7 @@ export default function BookDetailPage() {
         tags: userBook.tags.filter((t) => t.id !== tagId),
       });
     } catch {
-      // Error handling
+      toast.error("タグの解除に失敗しました");
     }
   };
 
@@ -240,7 +241,7 @@ export default function BookDetailPage() {
         });
       }
     } catch {
-      // Error handling
+      toast.error("タグの削除に失敗しました");
     }
   };
 

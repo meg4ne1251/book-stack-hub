@@ -12,7 +12,6 @@ from app.services.book_search import search_external, search_internal
 from app.services.image_service import (
     convert_and_save_image,
     download_and_convert_cover,
-    generate_signed_url,
     validate_image_magic_bytes,
 )
 from app.utils.exceptions import (
@@ -23,7 +22,7 @@ from app.utils.exceptions import (
     UnsupportedMediaTypeException,
     ValidationException,
 )
-from app.utils.response import paginated_response
+from app.utils.response import book_to_response, paginated_response
 from app.utils.series import extract_series_info
 
 logger = logging.getLogger(__name__)
@@ -32,34 +31,8 @@ router = APIRouter(prefix="/books", tags=["books"])
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB
 
-
-def _book_to_response(book: Book) -> dict:
-    """Bookモデルをレスポンスdictに変換（署名付きURL付き）"""
-    cover_url = book.cover_image_url
-
-    # ローカル保存の画像（カスタム書籍など）は署名付きURLに変換
-    if cover_url and not cover_url.startswith(("http://", "https://")):
-        cover_url = generate_signed_url(cover_url)
-
-    return {
-        "id": str(book.id),
-        "isbn_10": book.isbn_10,
-        "isbn_13": book.isbn_13,
-        "title": book.title,
-        "subtitle": book.subtitle,
-        "series_title": book.series_title,
-        "volume_number": book.volume_number,
-        "authors": book.authors or [],
-        "publisher": book.publisher,
-        "published_date": str(book.published_date) if book.published_date else None,
-        "description": book.description,
-        "page_count": book.page_count,
-        "cover_image_url": cover_url,
-        "categories": book.categories or [],
-        "language": book.language,
-        "source": book.source,
-        "is_custom": book.is_custom,
-    }
+# 後方互換: 他ルーターからのインポート用エイリアス
+_book_to_response = book_to_response
 
 
 @router.get("/search")
@@ -164,7 +137,7 @@ async def register_external_book(
     cover_path = None
     if body.cover_image_url:
         try:
-            cover_path = download_and_convert_cover(body.cover_image_url)
+            cover_path = await download_and_convert_cover(body.cover_image_url)
         except Exception:
             logger.warning("Failed to download cover image: %s", body.cover_image_url)
 

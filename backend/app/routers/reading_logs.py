@@ -1,4 +1,5 @@
 """読書ログAPI"""
+import logging
 import uuid
 from datetime import date
 
@@ -12,6 +13,7 @@ from app.utils.exceptions import NotFoundException, ValidationException
 from app.utils.redis import redis_client
 from app.utils.response import paginated_response
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/me/reading-logs", tags=["reading-logs"])
 
 
@@ -31,10 +33,13 @@ class ReadingLogUpdate(BaseModel):
 
 
 async def _invalidate_heatmap_cache(user_id: uuid.UUID) -> None:
-    """ヒートマップキャッシュを無効化"""
-    pattern = f"heatmap:{user_id}:*"
-    async for key in redis_client.scan_iter(pattern):
-        await redis_client.delete(key)
+    """ヒートマップキャッシュを無効化（Redis障害時はログのみ）"""
+    try:
+        pattern = f"heatmap:{user_id}:*"
+        async for key in redis_client.scan_iter(pattern):
+            await redis_client.delete(key)
+    except Exception as e:
+        logger.warning("Failed to invalidate heatmap cache for user %s: %s", user_id, e)
 
 
 @router.get("")

@@ -4,6 +4,7 @@ from datetime import date
 
 from fastapi import APIRouter, Query
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.dependencies import CurrentUser, DBSession
@@ -12,9 +13,9 @@ from pydantic import BaseModel
 from app.models.book import Book
 from app.models.tag import Tag
 from app.models.user_book import UserBook
-from app.routers.books import _book_to_response
 from app.schemas.user_book import UserBookCreate, UserBookUpdate
 from app.services.image_service import generate_signed_url
+from app.utils.response import book_to_response
 from app.utils.exceptions import (
     AlreadyExistsException,
     CustomBookRestrictedException,
@@ -31,11 +32,11 @@ VALID_STATUSES = {
 }
 
 
-def _user_book_to_response(ub: UserBook) -> dict:
+def _userbook_to_response(ub: UserBook) -> dict:
     """UserBookモデルをレスポンスdictに変換"""
     return {
         "id": str(ub.id),
-        "book": _book_to_response(ub.book),
+        "book": book_to_response(ub.book),
         "status": ub.status,
         "rating": ub.rating,
         "private_memo": ub.private_memo,
@@ -107,7 +108,7 @@ async def list_my_books(
     result = await db.execute(base_q.offset(offset).limit(per_page))
     user_books = list(result.scalars().all())
 
-    data = [_user_book_to_response(ub) for ub in user_books]
+    data = [_userbook_to_response(ub) for ub in user_books]
     return paginated_response(data, page, per_page, total)
 
 
@@ -150,7 +151,11 @@ async def add_book_to_shelf(
         is_owned=body.is_owned,
     )
     db.add(user_book)
-    await db.flush()
+    try:
+        await db.flush()
+    except IntegrityError:
+        await db.rollback()
+        raise AlreadyExistsException("Book already in your shelf")
 
     # Reload with relationships
     result = await db.execute(
@@ -159,7 +164,7 @@ async def add_book_to_shelf(
         .options(selectinload(UserBook.book), selectinload(UserBook.tags))
     )
     user_book = result.scalar_one()
-    return {"data": _user_book_to_response(user_book)}
+    return {"data": _userbook_to_response(user_book)}
 
 
 @router.patch("/{user_book_id}")
@@ -189,7 +194,7 @@ async def update_user_book(
                 raise ValidationException(f"Invalid date format for {key}. Use YYYY-MM-DD.")
         setattr(user_book, key, value)
 
-    return {"data": _user_book_to_response(user_book)}
+    return {"data": _userbook_to_response(user_book)}
 
 
 @router.delete("/{user_book_id}", status_code=204)

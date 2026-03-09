@@ -110,7 +110,7 @@ def convert_and_save_image(
         image.save(str(filepath), "WEBP", quality=settings.IMAGE_QUALITY)
 
         return filename
-    except Exception as e:
+    except (OSError, Image.DecompressionBombError, ValueError, SyntaxError) as e:
         logger.error("Failed to convert cover image: %s", e)
         return None
 
@@ -166,6 +166,6 @@ def convert_and_save_avatar(
 
         image.save(str(filepath), "WEBP", quality=settings.IMAGE_QUALITY)
         return filename
-    except Exception as e:
+    except (OSError, Image.DecompressionBombError, ValueError, SyntaxError) as e:
         logger.error("Failed to convert avatar image: %s", e)
         return None

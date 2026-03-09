@@ -9,13 +9,12 @@ from sqlalchemy.orm import selectinload
 
 from app.dependencies import CurrentUser, DBSession
 from app.models.playlist import Playlist, PlaylistItem
-from app.routers.books import _book_to_response
 from app.utils.exceptions import (
     ForbiddenException,
     NotFoundException,
     ValidationException,
 )
-from app.utils.response import paginated_response
+from app.utils.response import book_to_response, paginated_response
 
 router = APIRouter(tags=["playlists"])
 
@@ -44,7 +43,7 @@ def _playlist_to_response(playlist: Playlist) -> dict:
     for item in playlist.items:
         items.append({
             "id": str(item.id),
-            "book": _book_to_response(item.book),
+            "book": book_to_response(item.book),
             "position": item.position,
         })
 
@@ -221,7 +220,10 @@ async def add_playlist_item(
     if len(playlist.items) >= 100:
         raise ValidationException("Maximum 100 books per playlist")
 
-    book_id = uuid.UUID(body.book_id)
+    try:
+        book_id = uuid.UUID(body.book_id)
+    except ValueError:
+        raise ValidationException("Invalid book_id format")
 
     # 重複チェック
     for item in playlist.items:

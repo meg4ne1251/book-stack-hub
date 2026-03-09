@@ -5,6 +5,7 @@ import Link from "next/link";
 import { apiClient } from "@/lib/api-client";
 import { STATUS_LABELS } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import type { PaginatedResponse, UserBook } from "@/types/api";
 
 export default function BookshelfPage() {
@@ -31,7 +32,7 @@ export default function BookshelfPage() {
         setBooks(res.data);
         setTotalPages(res.meta.total_pages);
       } catch {
-        // Error handling
+        toast.error("本棚の読み込みに失敗しました");
       } finally {
         setLoading(false);
       }

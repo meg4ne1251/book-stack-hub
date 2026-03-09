@@ -12,7 +12,7 @@ from app.dependencies import CurrentUser, DBSession
 from app.models.book import Book
 from app.models.user import User
 from app.models.user_book import UserBook
-from app.routers.books import _book_to_response
+from app.utils.response import book_to_response
 from app.schemas.auth import ChangePasswordRequest
 from app.services.auth_service import hash_password, verify_password
 from app.services.image_service import convert_and_save_avatar
@@ -33,6 +33,19 @@ class ProfileUpdate(BaseModel):
     is_profile_public: bool | None = None
 
 
+async def _resolve_user(db: DBSession, user_id: str) -> User:
+    """UUIDまたはusernameでユーザーを解決"""
+    try:
+        parsed_id = uuid.UUID(user_id)
+        result = await db.execute(select(User).where(User.id == parsed_id))
+    except ValueError:
+        result = await db.execute(select(User).where(User.username == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise NotFoundException("User not found")
+    return user
+
+
 @router.get("/{user_id}")
 async def get_user_profile(
     user_id: str,
@@ -40,19 +53,7 @@ async def get_user_profile(
     db: DBSession,
 ):
     """ユーザープロフィール取得（UUIDまたはusernameで検索）"""
-    # Try UUID first, fall back to username lookup
-    try:
-        parsed_id = uuid.UUID(user_id)
-        result = await db.execute(
-            select(User).where(User.id == parsed_id)
-        )
-    except ValueError:
-        result = await db.execute(
-            select(User).where(User.username == user_id)
-        )
-    user = result.scalar_one_or_none()
-    if not user:
-        raise NotFoundException("User not found")
+    user = await _resolve_user(db, user_id)
 
     # Public fields only (unless viewing own profile)
     is_self = user.id == current_user.id
@@ -83,15 +84,7 @@ async def get_user_public_books(
     per_page: int = Query(default=20, ge=1, le=50),
 ):
     """ユーザーの公開本棚を取得"""
-    # Resolve user by UUID or username
-    try:
-        parsed_id = uuid.UUID(user_id)
-        result = await db.execute(select(User).where(User.id == parsed_id))
-    except ValueError:
-        result = await db.execute(select(User).where(User.username == user_id))
-    user = result.scalar_one_or_none()
-    if not user:
-        raise NotFoundException("User not found")
+    user = await _resolve_user(db, user_id)
 
     is_self = user.id == current_user.id
     if not is_self and not user.is_profile_public:
@@ -115,7 +108,7 @@ async def get_user_public_books(
     data = [
         {
             "id": str(ub.id),
-            "book": _book_to_response(ub.book),
+            "book": book_to_response(ub.book),
             "status": ub.status,
             "rating": ub.rating,
             # private_memo は非公開情報のため他ユーザーには返さない
@@ -172,8 +165,13 @@ async def deactivate_user(
     if str(current_user.id) != user_id and current_user.role != "admin":
         raise ForbiddenException("Not authorized")
 
+    try:
+        parsed_id = uuid.UUID(user_id)
+    except ValueError:
+        raise NotFoundException("User not found")
+
     result = await db.execute(
-        select(User).where(User.id == uuid.UUID(user_id))
+        select(User).where(User.id == parsed_id)
     )
     user = result.scalar_one_or_none()
     if not user:

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ReadingHeatmap } from "@/components/reading-log/heatmap";
 import { apiClient } from "@/lib/api-client";
+import { toast } from "sonner";
 import { STATUS_LABELS } from "@/lib/constants";
 import type { HeatmapData } from "@/types/api";
 
@@ -38,7 +39,7 @@ export default function StatsPage() {
         setStats(statsRes);
         setHeatmapData(heatmapRes.data);
       } catch {
-        // Stats API may not be implemented yet, use placeholder
+        toast.error("統計情報の取得に失敗しました");
         setStats(null);
       } finally {
         setLoading(false);
@@ -55,7 +56,7 @@ export default function StatsPage() {
       });
       // TODO: Poll for completion and show download
     } catch {
-      // Error handling
+      toast.error("レポート生成に失敗しました");
     } finally {
       setGeneratingReport(false);
     }

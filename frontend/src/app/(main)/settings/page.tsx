@@ -8,6 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { useAuthStore } from "@/stores/authStore";
 import { apiClient, ApiRequestError } from "@/lib/api-client";
+import { toast } from "sonner";
+import type { User } from "@/types/api";
 
 export default function SettingsPage() {
   const { user, setUser } = useAuthStore();
@@ -53,13 +55,13 @@ export default function SettingsPage() {
     setProfileMessage(null);
 
     try {
-      const res = await apiClient.patch(`/users/${user.id}`, {
+      const res = await apiClient.patch<User>(`/users/${user.id}`, {
         display_name: displayName,
         bio: bio || null,
         locale,
         is_profile_public: isProfilePublic,
       });
-      setUser(res as typeof user);
+      setUser(res);
       setProfileMessage("プロフィールを更新しました");
     } catch (err) {
       if (err instanceof ApiRequestError) {
@@ -82,8 +84,8 @@ export default function SettingsPage() {
       await apiClient.post(`/users/${user.id}/avatar`, formData);
       setAvatarFile(null);
       // Refresh user data
-      const me = await apiClient.get("/auth/me");
-      setUser(me as typeof user);
+      const me = await apiClient.get<User>("/auth/me");
+      setUser(me);
     } catch (err) {
       if (err instanceof ApiRequestError) {
         setProfileError(err.message);
@@ -140,7 +142,7 @@ export default function SettingsPage() {
       await apiClient.post("/me/import", formData);
       // TODO: Start polling for import progress
     } catch {
-      // Error handling
+      toast.error("インポートに失敗しました");
     } finally {
       setImporting(false);
     }
@@ -152,7 +154,7 @@ export default function SettingsPage() {
       await apiClient.post("/me/export", { format });
       // TODO: Start polling for export completion, then download
     } catch {
-      // Error handling
+      toast.error("エクスポートに失敗しました");
     } finally {
       setExporting(false);
     }
@@ -171,7 +173,7 @@ export default function SettingsPage() {
       await apiClient.delete(`/users/${user.id}`);
       window.location.href = "/login";
     } catch {
-      // Error handling
+      toast.error("アカウントの無効化に失敗しました");
     }
   };
 

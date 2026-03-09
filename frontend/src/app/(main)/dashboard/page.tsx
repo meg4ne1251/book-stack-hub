@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/authStore";
 import { apiClient } from "@/lib/api-client";
 import { ReadingHeatmap } from "@/components/reading-log/heatmap";
@@ -15,6 +16,7 @@ interface DashboardStats {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const { user } = useAuthStore();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [heatmapData, setHeatmapData] = useState<HeatmapData>({});
@@ -56,7 +58,7 @@ export default function DashboardPage() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      window.location.href = `/books/add?q=${encodeURIComponent(searchQuery.trim())}`;
+      router.push(`/books/add?q=${encodeURIComponent(searchQuery.trim())}`);
     }
   };
 

@@ -1,15 +1,19 @@
 """データインポート・エクスポート API"""
 
 import os
+from pathlib import Path
 from typing import Literal
 
 from fastapi import APIRouter, UploadFile, File
 from pydantic import BaseModel
 
+from app.config import settings
 from app.dependencies import CurrentUser, DBSession
 from app.utils.exceptions import ForbiddenException, NotFoundException, ValidationException
 
 router = APIRouter(prefix="/me", tags=["data"])
+
+MAX_IMPORT_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 
 
 class ExportRequest(BaseModel):
@@ -38,15 +42,20 @@ async def import_data(
         raise ValidationException("Unsupported file format. Use CSV or JSON.")
 
     content = await file.read()
-    if len(content) > 10 * 1024 * 1024:  # 10MB limit
+    if len(content) > MAX_IMPORT_FILE_SIZE:
         raise ValidationException("File too large. Maximum 10MB.")
+
+    try:
+        decoded_content = content.decode("utf-8")
+    except UnicodeDecodeError:
+        raise ValidationException("File encoding must be UTF-8.")
 
     # Queue import task
     from app.tasks.data import process_import
 
     task = process_import.delay(
         str(current_user.id),
-        content.decode("utf-8"),
+        decoded_content,
         filename,
     )
 
@@ -105,16 +114,20 @@ async def download_export(
 
         # セキュリティ: パストラバーサル防止
         # 1. パスを正規化してシンボリックリンク・相対パスを解決
-        resolved_path = os.path.realpath(file_path)
-        # 2. ファイル名がユーザーIDで始まることを検証
-        base_name = os.path.basename(resolved_path)
+        resolved_path = Path(file_path).resolve()
+        export_dir = Path("/data/exports").resolve()
+        # 2. 解決済みパスがエクスポートディレクトリ内であることを検証
+        if not str(resolved_path).startswith(str(export_dir) + os.sep):
+            raise ForbiddenException("Not authorized to download this export")
+        # 3. ファイル名がユーザーIDで始まることを検証
+        base_name = resolved_path.name
         if not base_name.startswith(str(current_user.id)):
             raise ForbiddenException("Not authorized to download this export")
 
         from fastapi.responses import FileResponse
 
         return FileResponse(
-            resolved_path,
+            str(resolved_path),
             media_type="application/octet-stream",
             filename=base_name,
         )
