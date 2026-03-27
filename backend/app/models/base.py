@@ -5,8 +5,6 @@ from sqlalchemy import DateTime, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.database import Base
-
 
 class TimestampMixin:
     """created_at / updated_at を提供するMixin"""

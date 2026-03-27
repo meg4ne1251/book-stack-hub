@@ -74,6 +74,10 @@ async def download_and_convert_cover(
         logger.error("Failed to download cover image: %s", e)
         return None
 
+    if not validate_image_magic_bytes(image_data):
+        logger.warning("Downloaded image failed magic bytes validation: %s", url)
+        return None
+
     return convert_and_save_image(image_data, book_id)
 
 
@@ -115,7 +119,9 @@ def convert_and_save_image(
         return None
 
 
-def generate_signed_url(filename: str) -> str:
+def generate_signed_url(
+    filename: str, path_prefix: str = "/api/v1/images"
+) -> str:
     """HMAC-SHA256署名付きURLを生成"""
     expires = int(time.time()) + SIGNATURE_EXPIRE_SECONDS
     signature_string = f"{filename}:{expires}"
@@ -124,7 +130,7 @@ def generate_signed_url(filename: str) -> str:
         signature_string.encode(),
         hashlib.sha256,
     ).hexdigest()
-    return f"/api/v1/images/{filename}?token={token}&expires={expires}"
+    return f"{path_prefix}/{filename}?token={token}&expires={expires}"
 
 
 def verify_signed_url(filename: str, token: str, expires: int) -> bool:

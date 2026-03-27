@@ -1,14 +1,14 @@
 """統計・レポート API"""
 
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 
-from fastapi import APIRouter, Query
-from sqlalchemy import func, select, extract, and_
+from fastapi import APIRouter
+from sqlalchemy import and_, extract, func, select
 
 from app.dependencies import CurrentUser, DBSession
-from app.models.user_book import UserBook
 from app.models.book import Book
 from app.models.reading_log import ReadingLog
+from app.models.user_book import UserBook
 
 router = APIRouter(prefix="/me/stats", tags=["stats"])
 

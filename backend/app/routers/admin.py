@@ -5,15 +5,14 @@ from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 from fastapi import APIRouter, Query
-from pydantic import BaseModel, Field
-from sqlalchemy import func, select, and_
+from pydantic import BaseModel
+from sqlalchemy import and_, func, select
 
 from app.dependencies import AdminUser, DBSession
-from app.models.user import User
 from app.models.book import Book
-from app.models.user_book import UserBook
-from app.models.review import Review
 from app.models.playlist import Playlist
+from app.models.review import Review
+from app.models.user import User
 from app.utils.exceptions import NotFoundException
 from app.utils.response import paginated_response
 
@@ -112,18 +111,14 @@ async def list_users(
 
 @router.patch("/users/{user_id}")
 async def update_user(
-    user_id: str,
+    user_id: uuid.UUID,
     body: AdminUserUpdate,
     admin: AdminUser,
     db: DBSession,
 ):
     """ユーザー状態変更"""
-    try:
-        parsed_id = uuid.UUID(user_id)
-    except ValueError:
-        raise NotFoundException("User not found")
     result = await db.execute(
-        select(User).where(User.id == parsed_id)
+        select(User).where(User.id == user_id)
     )
     user = result.scalar_one_or_none()
     if not user:
@@ -149,17 +144,13 @@ async def update_user(
 
 @router.delete("/users/{user_id}")
 async def delete_user(
-    user_id: str,
+    user_id: uuid.UUID,
     admin: AdminUser,
     db: DBSession,
 ):
     """ユーザー削除（論理削除）"""
-    try:
-        parsed_id = uuid.UUID(user_id)
-    except ValueError:
-        raise NotFoundException("User not found")
     result = await db.execute(
-        select(User).where(User.id == parsed_id)
+        select(User).where(User.id == user_id)
     )
     user = result.scalar_one_or_none()
     if not user:
@@ -208,18 +199,14 @@ async def list_public_reviews(
 
 @router.patch("/reviews/{review_id}")
 async def update_review_visibility(
-    review_id: str,
+    review_id: uuid.UUID,
     body: AdminVisibilityUpdate,
     admin: AdminUser,
     db: DBSession,
 ):
     """レビュー非公開化"""
-    try:
-        parsed_id = uuid.UUID(review_id)
-    except ValueError:
-        raise NotFoundException("Review not found")
     result = await db.execute(
-        select(Review).where(Review.id == parsed_id)
+        select(Review).where(Review.id == review_id)
     )
     review = result.scalar_one_or_none()
     if not review:
@@ -271,18 +258,14 @@ async def list_public_playlists(
 
 @router.patch("/playlists/{playlist_id}")
 async def update_playlist_visibility(
-    playlist_id: str,
+    playlist_id: uuid.UUID,
     body: AdminVisibilityUpdate,
     admin: AdminUser,
     db: DBSession,
 ):
     """プレイリスト非公開化"""
-    try:
-        parsed_id = uuid.UUID(playlist_id)
-    except ValueError:
-        raise NotFoundException("Playlist not found")
     result = await db.execute(
-        select(Playlist).where(Playlist.id == parsed_id)
+        select(Playlist).where(Playlist.id == playlist_id)
     )
     playlist = result.scalar_one_or_none()
     if not playlist:

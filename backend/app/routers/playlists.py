@@ -223,7 +223,7 @@ async def add_playlist_item(
     try:
         book_id = uuid.UUID(body.book_id)
     except ValueError:
-        raise ValidationException("Invalid book_id format")
+        raise ValidationException("Invalid book_id format") from None
 
     # 重複チェック
     for item in playlist.items:
@@ -291,9 +291,14 @@ async def reorder_playlist_items(
 
     item_map = {str(item.id): item for item in playlist.items}
 
+    # 送信されたIDがプレイリスト内の全アイテムと一致することを検証
+    if set(body.item_ids) != set(item_map.keys()):
+        raise ValidationException(
+            "item_ids must contain exactly all items in the playlist"
+        )
+
     for position, item_id in enumerate(body.item_ids, start=1):
-        if item_id in item_map:
-            item_map[item_id].position = position
+        item_map[item_id].position = position
 
     return {"data": "ok"}
 

@@ -96,7 +96,7 @@ async def register_external_book(
     body: ExternalBookRegister,
 ):
     """外部検索結果の書籍をマスターDBに登録する（既存ならそのまま返す）"""
-    from sqlalchemy import select, or_
+    from sqlalchemy import or_, select
 
     # ISBN で既存チェック
     if body.isbn_10 or body.isbn_13:
@@ -161,7 +161,7 @@ async def create_custom_book(
     cover_image: UploadFile | None = File(default=None),
 ):
     """カスタム書籍の手動登録（multipart/form-data）"""
-    from sqlalchemy import select, or_
+    from sqlalchemy import or_, select
 
     # ISBN重複チェック
     if isbn:
@@ -221,7 +221,7 @@ async def create_custom_book(
         try:
             date.fromisoformat(published_date)
         except ValueError:
-            raise ValidationException("Invalid date format. Use YYYY-MM-DD.")
+            raise ValidationException("Invalid date format. Use YYYY-MM-DD.") from None
 
     book = Book(
         title=title,

@@ -3,25 +3,23 @@ import uuid
 from datetime import date
 
 from fastapi import APIRouter, Query
+from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.dependencies import CurrentUser, DBSession
-from pydantic import BaseModel
-
 from app.models.book import Book
 from app.models.tag import Tag
 from app.models.user_book import UserBook
 from app.schemas.user_book import UserBookCreate, UserBookUpdate
-from app.utils.response import book_to_response, paginated_response
 from app.utils.exceptions import (
     AlreadyExistsException,
     CustomBookRestrictedException,
-    ForbiddenException,
     NotFoundException,
     ValidationException,
 )
+from app.utils.response import book_to_response, paginated_response
 
 router = APIRouter(prefix="/me/books", tags=["bookshelf"])
 
@@ -83,7 +81,7 @@ async def list_my_books(
         try:
             book_uuid = uuid.UUID(book_id)
         except ValueError:
-            raise ValidationException("Invalid book_id format")
+            raise ValidationException("Invalid book_id format") from None
         base_q = base_q.where(UserBook.book_id == book_uuid)
         count_q = count_q.where(UserBook.book_id == book_uuid)
 
@@ -120,7 +118,7 @@ async def add_book_to_shelf(
     try:
         book_id = uuid.UUID(body.book_id)
     except ValueError:
-        raise ValidationException("Invalid book_id format")
+        raise ValidationException("Invalid book_id format") from None
 
     # 書籍の存在確認
     result = await db.execute(select(Book).where(Book.id == book_id))
@@ -140,7 +138,7 @@ async def add_book_to_shelf(
         )
     )
     if result.scalar_one_or_none():
-        raise AlreadyExistsException("Book already in your shelf")
+        raise AlreadyExistsException("Book already in your shelf") from None
 
     user_book = UserBook(
         user_id=current_user.id,
@@ -153,7 +151,7 @@ async def add_book_to_shelf(
         await db.flush()
     except IntegrityError:
         await db.rollback()
-        raise AlreadyExistsException("Book already in your shelf")
+        raise AlreadyExistsException("Book already in your shelf") from None
 
     # Reload with relationships
     result = await db.execute(
@@ -189,7 +187,7 @@ async def update_user_book(
             try:
                 value = date.fromisoformat(value)
             except ValueError:
-                raise ValidationException(f"Invalid date format for {key}. Use YYYY-MM-DD.")
+                raise ValidationException(f"Invalid date format for {key}. Use YYYY-MM-DD.") from None
         setattr(user_book, key, value)
 
     return {"data": _userbook_to_response(user_book)}
@@ -239,7 +237,7 @@ async def add_tag_to_book(
     try:
         tag_id = uuid.UUID(body.tag_id)
     except ValueError:
-        raise ValidationException("Invalid tag_id format")
+        raise ValidationException("Invalid tag_id format") from None
     result = await db.execute(
         select(Tag).where(Tag.id == tag_id, Tag.user_id == current_user.id)
     )

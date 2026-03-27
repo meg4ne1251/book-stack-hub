@@ -2,6 +2,7 @@
 import logging
 import uuid
 from datetime import date
+from typing import Any
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
@@ -15,6 +16,19 @@ from app.utils.response import paginated_response
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/me/reading-logs", tags=["reading-logs"])
+
+
+def _reading_log_to_response(log: ReadingLog) -> dict[str, Any]:
+    """ReadingLogモデルをレスポンスdictに変換"""
+    return {
+        "id": str(log.id),
+        "book_id": str(log.book_id),
+        "read_date": str(log.read_date),
+        "pages_read": log.pages_read,
+        "minutes_read": log.minutes_read,
+        "note": log.note,
+        "created_at": str(log.created_at),
+    }
 
 
 class ReadingLogCreate(BaseModel):
@@ -35,9 +49,13 @@ class ReadingLogUpdate(BaseModel):
 async def _invalidate_heatmap_cache(user_id: uuid.UUID) -> None:
     """ヒートマップキャッシュを無効化（Redis障害時はログのみ）"""
     try:
-        pattern = f"heatmap:{user_id}:*"
-        async for key in redis_client.scan_iter(pattern):
-            await redis_client.delete(key)
+        # 現在年 ± 1年分のキーを確定的に削除（SCANの代わり）
+        current_year = date.today().year
+        keys = [
+            f"heatmap:{user_id}:{year}"
+            for year in range(current_year - 1, current_year + 2)
+        ]
+        await redis_client.delete(*keys)
     except Exception as e:
         logger.warning("Failed to invalidate heatmap cache for user %s: %s", user_id, e)
 
@@ -66,18 +84,7 @@ async def list_reading_logs(
     )
     logs = result.scalars().all()
 
-    data = [
-        {
-            "id": str(log.id),
-            "book_id": str(log.book_id),
-            "read_date": str(log.read_date),
-            "pages_read": log.pages_read,
-            "minutes_read": log.minutes_read,
-            "note": log.note,
-            "created_at": str(log.created_at),
-        }
-        for log in logs
-    ]
+    data = [_reading_log_to_response(log) for log in logs]
     return paginated_response(data, page, per_page, total)
 
 
@@ -91,12 +98,12 @@ async def create_reading_log(
     try:
         book_uuid = uuid.UUID(body.book_id)
     except ValueError:
-        raise ValidationException("Invalid book_id format")
+        raise ValidationException("Invalid book_id format") from None
 
     try:
         read_date = date.fromisoformat(body.read_date)
     except ValueError:
-        raise ValidationException("Invalid date format. Use YYYY-MM-DD.")
+        raise ValidationException("Invalid date format. Use YYYY-MM-DD.") from None
 
     log = ReadingLog(
         user_id=current_user.id,
@@ -110,17 +117,7 @@ async def create_reading_log(
     await db.flush()
     await _invalidate_heatmap_cache(current_user.id)
 
-    return {
-        "data": {
-            "id": str(log.id),
-            "book_id": str(log.book_id),
-            "read_date": str(log.read_date),
-            "pages_read": log.pages_read,
-            "minutes_read": log.minutes_read,
-            "note": log.note,
-            "created_at": str(log.created_at),
-        }
-    }
+    return {"data": _reading_log_to_response(log)}
 
 
 @router.get("/heatmap")
@@ -194,22 +191,12 @@ async def update_reading_log(
             try:
                 value = date.fromisoformat(value)
             except ValueError:
-                raise ValidationException("Invalid date format. Use YYYY-MM-DD.")
+                raise ValidationException("Invalid date format. Use YYYY-MM-DD.") from None
         setattr(log, key, value)
 
     await _invalidate_heatmap_cache(current_user.id)
 
-    return {
-        "data": {
-            "id": str(log.id),
-            "book_id": str(log.book_id),
-            "read_date": str(log.read_date),
-            "pages_read": log.pages_read,
-            "minutes_read": log.minutes_read,
-            "note": log.note,
-            "created_at": str(log.created_at),
-        }
-    }
+    return {"data": _reading_log_to_response(log)}
 
 
 @router.delete("/{log_id}", status_code=204)

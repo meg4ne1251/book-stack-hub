@@ -50,16 +50,16 @@ def create_access_token(user_id: uuid.UUID, role: str) -> str:
     return jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
 
 
-def decode_access_token(token: str) -> dict:
+def decode_access_token(token: str) -> dict[str, object]:
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
         if payload.get("type") != "access":
             raise UnauthorizedException("Invalid token type")
         return payload
     except jwt.ExpiredSignatureError:
-        raise TokenExpiredException()
+        raise TokenExpiredException() from None
     except jwt.InvalidTokenError:
-        raise UnauthorizedException("Invalid token")
+        raise UnauthorizedException("Invalid token") from None
 
 
 def generate_refresh_token() -> str:

@@ -1,19 +1,21 @@
 import time
+import uuid
 
 from app.utils.redis import redis_client
 
 # Luaスクリプト: スライディングウィンドウ方式の原子的レートリミット
 # KEYS[1] = rate limit key
-# ARGV[1] = now (timestamp)
+# ARGV[1] = now (timestamp, used as score)
 # ARGV[2] = window start (now - window_seconds)
 # ARGV[3] = max_requests
 # ARGV[4] = window_seconds (for expire)
+# ARGV[5] = unique member id (prevents same-timestamp collision)
 # Returns: 1 if allowed, 0 if rate limited
 _RATE_LIMIT_SCRIPT = """
 redis.call('ZREMRANGEBYSCORE', KEYS[1], 0, ARGV[2])
 local count = redis.call('ZCARD', KEYS[1])
 if count < tonumber(ARGV[3]) then
-    redis.call('ZADD', KEYS[1], ARGV[1], ARGV[1])
+    redis.call('ZADD', KEYS[1], ARGV[1], ARGV[5])
     redis.call('EXPIRE', KEYS[1], tonumber(ARGV[4]))
     return 1
 end
@@ -30,6 +32,7 @@ async def check_rate_limit(
     Returns True if request is allowed, False if rate limited.
     """
     now = time.time()
+    member_id = f"{now}:{uuid.uuid4().hex[:8]}"
     result = await redis_client.eval(
         _RATE_LIMIT_SCRIPT,
         1,
@@ -38,5 +41,6 @@ async def check_rate_limit(
         str(now - window_seconds),
         str(max_requests),
         str(window_seconds),
+        member_id,
     )
     return result == 1

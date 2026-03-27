@@ -1,18 +1,30 @@
 import logging
 import sys
-from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import settings
-from app.utils.exceptions import AppException
 from app.routers import (
-    admin, auth, books, data, health, images, playlists,
-    reading_logs, reviews, stats, tags, tasks, user_books, users,
+    admin,
+    auth,
+    books,
+    data,
+    health,
+    images,
+    playlists,
+    reading_logs,
+    reviews,
+    stats,
+    tags,
+    tasks,
+    user_books,
+    users,
 )
+from app.utils.exceptions import AppException
 
 # JSON structured logging
 logging.basicConfig(
@@ -29,6 +41,7 @@ async def _create_initial_admin() -> None:
         return
 
     from sqlalchemy import select
+
     from app.database import async_session_factory
     from app.models.user import User
     from app.services.auth_service import hash_password

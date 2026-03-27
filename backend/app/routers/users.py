@@ -3,16 +3,14 @@
 import uuid
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Query, UploadFile, File
+from fastapi import APIRouter, File, Query, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from app.dependencies import CurrentUser, DBSession
-from app.models.book import Book
 from app.models.user import User
 from app.models.user_book import UserBook
-from app.utils.response import book_to_response
 from app.schemas.auth import ChangePasswordRequest
 from app.services.auth_service import hash_password, verify_password
 from app.services.image_service import convert_and_save_avatar
@@ -21,7 +19,7 @@ from app.utils.exceptions import (
     NotFoundException,
     ValidationException,
 )
-from app.utils.response import paginated_response
+from app.utils.response import book_to_response, paginated_response
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -168,7 +166,7 @@ async def deactivate_user(
     try:
         parsed_id = uuid.UUID(user_id)
     except ValueError:
-        raise NotFoundException("User not found")
+        raise NotFoundException("User not found") from None
 
     result = await db.execute(
         select(User).where(User.id == parsed_id)
@@ -236,5 +234,5 @@ async def upload_avatar(
     current_user.avatar_url = filename
 
     from app.services.image_service import generate_signed_url
-    signed_url = generate_signed_url(filename).replace("/api/v1/images/", "/api/v1/avatars/")
+    signed_url = generate_signed_url(filename, path_prefix="/api/v1/avatars")
     return {"avatar_url": signed_url}

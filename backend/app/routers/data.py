@@ -4,12 +4,15 @@ import os
 from pathlib import Path
 from typing import Literal
 
-from fastapi import APIRouter, UploadFile, File
+from fastapi import APIRouter, File, UploadFile
 from pydantic import BaseModel
 
-from app.config import settings
 from app.dependencies import CurrentUser, DBSession
-from app.utils.exceptions import ForbiddenException, NotFoundException, ValidationException
+from app.utils.exceptions import (
+    ForbiddenException,
+    NotFoundException,
+    ValidationException,
+)
 
 router = APIRouter(prefix="/me", tags=["data"])
 
@@ -48,9 +51,10 @@ async def import_data(
     try:
         decoded_content = content.decode("utf-8")
     except UnicodeDecodeError:
-        raise ValidationException("File encoding must be UTF-8.")
+        raise ValidationException("File encoding must be UTF-8.") from None
 
     # Queue import task
+    from app.routers.tasks import register_task_owner
     from app.tasks.data import process_import
 
     task = process_import.delay(
@@ -58,6 +62,8 @@ async def import_data(
         decoded_content,
         filename,
     )
+
+    await register_task_owner(str(task.id), str(current_user.id))
 
     return {
         "task_id": str(task.id),
@@ -72,6 +78,7 @@ async def export_data(
     db: DBSession,
 ):
     """データエクスポートリクエスト（Celeryタスク）"""
+    from app.routers.tasks import register_task_owner
     from app.tasks.data import process_export
 
     task = process_export.delay(
@@ -79,6 +86,8 @@ async def export_data(
         body.format,
         body.include_images,
     )
+
+    await register_task_owner(str(task.id), str(current_user.id))
 
     return {
         "task_id": str(task.id),
@@ -93,6 +102,7 @@ async def download_export(
 ):
     """エクスポートファイルダウンロード"""
     from celery.result import AsyncResult
+
     from app.tasks.celery_app import celery_app
 
     result = AsyncResult(task_id, app=celery_app)

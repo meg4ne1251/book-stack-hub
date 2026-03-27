@@ -32,8 +32,11 @@ class TestCheckRateLimit:
         await check_rate_limit("rate:login:127.0.0.1", max_requests=10, window_seconds=60)
 
         args = mock_redis.eval.call_args
-        # eval(script, num_keys, key, now, window_start, max_requests, window_seconds)
+        # eval(script, num_keys, key, now, window_start, max_requests, window_seconds, member_id)
         assert args[0][1] == 1  # num_keys
         assert args[0][2] == "rate:login:127.0.0.1"  # key
         assert args[0][5] == "10"  # max_requests
         assert args[0][6] == "60"  # window_seconds
+        # member_id は "timestamp:hex8" 形式
+        member_id = args[0][7]
+        assert ":" in member_id

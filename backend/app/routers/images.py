@@ -8,7 +8,11 @@ from fastapi.responses import FileResponse, Response
 
 from app.config import settings
 from app.services.image_service import verify_signed_url
-from app.utils.exceptions import ForbiddenException, NotFoundException, ValidationException
+from app.utils.exceptions import (
+    ForbiddenException,
+    NotFoundException,
+    ValidationException,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["images"])

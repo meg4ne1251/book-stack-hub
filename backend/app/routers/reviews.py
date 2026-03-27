@@ -8,7 +8,12 @@ from sqlalchemy import func, select
 
 from app.dependencies import CurrentUser, DBSession
 from app.models.review import Review
-from app.utils.exceptions import AlreadyExistsException, ForbiddenException, NotFoundException, ValidationException
+from app.utils.exceptions import (
+    AlreadyExistsException,
+    ForbiddenException,
+    NotFoundException,
+    ValidationException,
+)
 from app.utils.response import paginated_response
 
 router = APIRouter(tags=["reviews"])
@@ -55,7 +60,7 @@ async def create_review(
     try:
         book_id = uuid.UUID(body.book_id)
     except ValueError:
-        raise ValidationException("Invalid book_id format")
+        raise ValidationException("Invalid book_id format") from None
 
     # 1ユーザー1書籍1レビュー制約チェック
     result = await db.execute(

@@ -1,5 +1,4 @@
 import logging
-import uuid
 
 from fastapi import APIRouter, Request, Response
 
@@ -16,7 +15,6 @@ from app.schemas.auth import (
 from app.services.auth_service import (
     authenticate_user,
     create_access_token,
-    decode_access_token,
     generate_password_reset_token,
     generate_refresh_token,
     get_user_by_id,
@@ -65,9 +63,18 @@ def _clear_refresh_cookie(response: Response) -> None:
 @router.post("/register", response_model=AuthResponse)
 async def register(
     body: RegisterRequest,
+    request: Request,
     response: Response,
     db: DBSession,
 ):
+    # Rate limit: 5 registrations/hour per IP
+    client_ip = request.client.host if request.client else "unknown"
+    allowed = await check_rate_limit(
+        f"rate_limit:register:{client_ip}", max_requests=5, window_seconds=3600
+    )
+    if not allowed:
+        raise RateLimitExceededException()
+
     # Turnstile verification
     if not await verify_turnstile(body.turnstile_token):
         raise ValidationException("Bot verification failed")
@@ -175,9 +182,19 @@ async def get_me(
 @router.post("/forgot-password", status_code=204)
 async def forgot_password(
     body: ForgotPasswordRequest,
+    request: Request,
     db: DBSession,
 ):
+    # Rate limit: 5 requests/hour per IP
+    client_ip = request.client.host if request.client else "unknown"
+    allowed = await check_rate_limit(
+        f"rate_limit:forgot_password:{client_ip}", max_requests=5, window_seconds=3600
+    )
+    if not allowed:
+        raise RateLimitExceededException()
+
     from sqlalchemy import select
+
     from app.models.user import User
 
     result = await db.execute(select(User).where(User.email == body.email))

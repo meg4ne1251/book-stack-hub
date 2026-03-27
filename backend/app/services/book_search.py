@@ -3,7 +3,7 @@ import asyncio
 import logging
 import uuid as uuid_mod
 
-from sqlalchemy import or_, select, func
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.book import Book
@@ -82,7 +82,7 @@ async def search_external(
             results = await asyncio.wait_for(
                 _search_keyword(query, max_results=40), timeout=10.0
             )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning("External search timeout (10s)")
         results = []
 

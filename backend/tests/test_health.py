@@ -3,12 +3,13 @@ from httpx import AsyncClient
 
 
 @pytest.mark.asyncio
-async def test_health_endpoint_returns_ok(client: AsyncClient):
-    """ヘルスチェックエンドポイントが200を返すこと"""
+async def test_health_endpoint_returns_status(client: AsyncClient):
+    """ヘルスチェックエンドポイントがステータスを返すこと"""
     response = await client.get("/api/v1/health")
-    assert response.status_code == 200
+    # DB/Redisが無い環境では503、接続可能なら200
+    assert response.status_code in (200, 503)
     data = response.json()
     assert "status" in data
-    assert "services" in data
-    assert "database" in data["services"]
-    assert "redis" in data["services"]
+    assert data["status"] in ("ok", "degraded")
+    # セキュリティ: 内部サービス名は公開しない
+    assert "services" not in data

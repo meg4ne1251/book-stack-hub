@@ -31,7 +31,7 @@ async def get_current_user(
     try:
         user_id = uuid.UUID(sub)
     except ValueError:
-        raise UnauthorizedException("Invalid token: malformed sub claim")
+        raise UnauthorizedException("Invalid token: malformed sub claim") from None
 
     user = await get_user_by_id(db, user_id)
     if not user or not user.is_active:
